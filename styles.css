@@ -105,11 +105,21 @@ body{
 .choiceBtn.incorrect .choiceMark{background:var(--ng);border-color:var(--ng);}
 .choiceBtn:disabled{cursor:default;}
 
+.dontKnowBtn{
+  display:block;width:100%;text-align:center;background:none;
+  border:1.5px dashed #cdd6d5;border-radius:12px;padding:11px 14px;
+  margin-bottom:9px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+}
+.dontKnowBtn:active{background:var(--teal-light);}
+.dontKnowBtn:disabled{opacity:.4;cursor:default;}
+.dontKnowBtn.hidden{display:none;}
+
 .feedback{margin-top:8px;padding:14px 16px;border-radius:12px;background:#fff;border:1px solid #e4e9e8;}
 .feedback.hidden{display:none;}
 .fbHead{font-weight:700;font-size:14px;margin-bottom:6px;}
 .fbHead.ok{color:var(--ok);}
 .fbHead.ng{color:var(--ng);}
+.fbHead.unknown{color:var(--orange);}
 .fbExp{font-size:13px;color:var(--ink);line-height:1.6;}
 
 .nextBtn{
@@ -134,8 +144,10 @@ body{
 .breakNum{width:40px;flex:none;text-align:right;color:var(--ink);font-weight:600;}
 
 .wrongItem{background:var(--card);border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid var(--ng);}
+.wrongItem.unknown{border-left-color:var(--orange);}
 .wrongQ{font-size:13px;font-weight:600;margin-bottom:6px;}
 .wrongYour{font-size:12px;color:var(--ng);}
+.wrongYour.unknown{color:var(--orange);}
 .wrongCorrect{font-size:12px;color:var(--ok);margin-bottom:6px;}
 .wrongExp{font-size:12px;color:var(--muted);line-height:1.5;}
 

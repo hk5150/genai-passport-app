@@ -1,4 +1,4 @@
-const CACHE_NAME = 'genai-passport-v4';
+const CACHE_NAME = 'genai-passport-v5';
 const APP_SHELL = [
   './',
   './index.html',

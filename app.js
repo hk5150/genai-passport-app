@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.3.0';
+const APP_VERSION = 'v1.4.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -103,12 +103,17 @@ function renderQuestion(){
   $('#feedback').classList.add('hidden');
   $('#feedback').innerHTML = '';
   $('#nextBtn').classList.add('hidden');
+  const dontKnowBtn = $('#dontKnowBtn');
+  dontKnowBtn.disabled = false;
+  dontKnowBtn.onclick = () => answerQuestion(idx, null);
   $$('.choiceBtn').forEach(btn => {
-    btn.addEventListener('click', () => selectAnswer(idx, parseInt(btn.dataset.ci)));
+    btn.addEventListener('click', () => answerQuestion(idx, parseInt(btn.dataset.ci)));
   });
 }
 
-function selectAnswer(idx, chosenIdx){
+// chosenIdx が null の場合は「わからない」回答(不正解扱いで復習対象になるが、
+// どの選択肢も誤答としてはマークしない)
+function answerQuestion(idx, chosenIdx){
   const q = QUESTIONS[idx];
   const correct = chosenIdx === q.a;
   $$('.choiceBtn').forEach(btn => {
@@ -117,6 +122,7 @@ function selectAnswer(idx, chosenIdx){
     if (ci === q.a) btn.classList.add('correct');
     if (ci === chosenIdx && !correct) btn.classList.add('incorrect');
   });
+  $('#dontKnowBtn').disabled = true;
   session.answers.push({idx, chosenIdx, correct});
 
   const key = qKey(q);
@@ -127,10 +133,12 @@ function selectAnswer(idx, chosenIdx){
   }
   saveStore();
 
+  const headClass = correct ? 'ok' : (chosenIdx === null ? 'unknown' : 'ng');
+  const headText = correct ? '正解 ◎' : (chosenIdx === null ? 'わからない' : '不正解 ×');
   const fb = $('#feedback');
   fb.classList.remove('hidden');
   fb.innerHTML = `
-    <div class="fbHead ${correct ? 'ok':'ng'}">${correct ? '正解 ◎' : '不正解 ×'}</div>
+    <div class="fbHead ${headClass}">${headText}</div>
     <div class="fbExp">${q.e}</div>
   `;
   $('#nextBtn').classList.remove('hidden');
@@ -178,9 +186,10 @@ function finishSession(){
   const wrongOnes = session.answers.filter(a=>!a.correct);
   $('#wrongList').innerHTML = wrongOnes.length ? wrongOnes.map(a => {
     const q = QUESTIONS[a.idx];
-    return `<div class="wrongItem">
+    const isUnknown = a.chosenIdx === null;
+    return `<div class="wrongItem ${isUnknown ? 'unknown':''}">
       <div class="wrongQ">${q.q}</div>
-      <div class="wrongYour">あなたの回答: ${q.c[a.chosenIdx]}</div>
+      <div class="wrongYour ${isUnknown ? 'unknown':''}">あなたの回答: ${isUnknown ? 'わからない(未回答)' : q.c[a.chosenIdx]}</div>
       <div class="wrongCorrect">正解: ${q.c[q.a]}</div>
       <div class="wrongExp">${q.e}</div>
     </div>`;
