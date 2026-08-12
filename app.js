@@ -13,7 +13,7 @@ let store = { history: [], wrong: {} }; // wrong: {questionKey: count}
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-function qKey(q){ return q.ch + "|" + q.q.slice(0,12); }
+function qKey(q){ return q.id || (q.ch + "|" + q.q.slice(0,12)); }
 
 function loadStore(){
   try {
