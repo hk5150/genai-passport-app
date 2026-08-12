@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>生成AIパスポート 模擬試験</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0b2e3a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AIパスポート">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="app">
+
+  <div id="homeScreen" class="screen active">
+    <div class="appHeader">
+      <h1>生成AIパスポート 対策</h1>
+      <p>公式テキスト全5章に対応した模擬試験・分野別演習アプリ</p>
+    </div>
+    <div class="statsRow" id="homeStats"></div>
+
+    <button class="primaryBtn" id="mockBtn">
+      <span>模擬試験を始める<span class="sub">最大60問・ランダム出題</span></span>
+      <span>›</span>
+    </button>
+    <button class="secondaryBtn" id="reviewBtn">
+      <span>間違えた問題を復習 <span class="count"></span></span>
+      <span>›</span>
+    </button>
+
+    <div class="sectionLabel">分野別演習</div>
+    <div id="chapterList"></div>
+  </div>
+
+  <div id="quizScreen" class="screen">
+    <div class="quizTop">
+      <span class="progressLabel" id="progressLabel"></span>
+      <button class="quitBtn" id="quitBtn">中断してホームへ</button>
+    </div>
+    <div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
+    <div class="tagRow">
+      <span class="tag" id="chapTag"></span>
+      <span class="tag sec" id="secTag"></span>
+    </div>
+    <div class="questionText" id="questionText"></div>
+    <div id="choices"></div>
+    <div class="feedback hidden" id="feedback"></div>
+    <button class="nextBtn hidden" id="nextBtn">次の問題へ</button>
+  </div>
+
+  <div id="resultScreen" class="screen">
+    <div class="resultHead">
+      <div class="resultScoreNum" id="resultScoreNum"></div>
+      <div class="resultPct" id="resultPct"></div>
+    </div>
+    <div class="sectionLabel">分野別スコア</div>
+    <div class="breakdownCard" id="chapBreakdown"></div>
+    <div class="sectionLabel">間違えた問題の解説</div>
+    <div id="wrongList"></div>
+    <div class="resultBtnRow">
+      <button class="secondaryBtn" id="homeFromResult">ホームへ</button>
+      <button class="primaryBtn" id="retryFromResult"><span>もう一度</span><span>›</span></button>
+    </div>
+  </div>
+
+</div>
+<script src="./app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.error('SW registration failed:', err);
+    });
+  });
+}
+</script>
+</body>
+</html>
