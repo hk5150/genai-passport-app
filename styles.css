@@ -26,8 +26,13 @@ body{
 
 /* HOME */
 .appHeader{padding:28px 4px 8px;}
+.titleRow{display:flex;align-items:baseline;gap:8px;margin:0 0 4px;}
 .appHeader h1{
-  font-size:22px;margin:0 0 4px;color:var(--navy);letter-spacing:.01em;
+  font-size:22px;margin:0;color:var(--navy);letter-spacing:.01em;
+}
+.versionBadge{
+  font-size:11px;font-weight:600;color:var(--teal);background:var(--teal-light);
+  border-radius:999px;padding:2px 8px;letter-spacing:.02em;white-space:nowrap;
 }
 .appHeader p{margin:0;color:var(--muted);font-size:13px;}
 

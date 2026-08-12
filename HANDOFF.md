@@ -5,6 +5,14 @@
 - リポジトリ: https://github.com/hk5150/genai-passport-app (public, GitHub Pages配信)
 - デプロイ方法: `main` ブランチのルートを GitHub Pages がそのまま配信(ビルドなし)。
   更新は `git push origin main` するだけで数十秒〜数分で反映される。
+- **バージョン表示(2026-08-12追加)**: ホーム画面のタイトル横に `app.js` 冒頭の
+  `APP_VERSION` 定数(例: `v1.3.0`)がバッジ表示される。**リリース(git push)ごとに
+  このバージョンを更新すること**(セマンティックバージョニング目安: 問題追加や
+  軽微な修正は patch、新機能追加は minor、大規模な作り直しは major)。
+  静的ファイル(`app.js`/`index.html`/`styles.css`/`manifest.json`)を1文字でも
+  変更した場合は、`sw.js` の `CACHE_NAME` も必ず版数を上げること
+  (cache-first戦略のため、上げないとユーザーの端末に古いapp.jsが残り続け、
+  バージョン表示自体も更新されない)。
 
 ## 1. これは何か
 生成AIパスポート試験(GUGA主催)の対策用クイズアプリ。公式テキスト全5章の

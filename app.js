@@ -1,3 +1,5 @@
+const APP_VERSION = 'v1.3.0';
+
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
   2: "第2章 生成AI(ジェネレーティブAI)",
@@ -186,6 +188,8 @@ function finishSession(){
 }
 
 function init(){
+  $('#versionBadge').textContent = APP_VERSION;
+
   fetch('./questions.json')
     .then(r=>r.json())
     .then(data => { QUESTIONS = data; renderHome(); screen('homeScreen'); });
