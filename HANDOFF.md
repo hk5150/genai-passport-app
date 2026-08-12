@@ -1,5 +1,11 @@
 # 生成AIパスポート対策アプリ — Claude Code引き継ぎメモ
 
+## 0. デプロイ先
+- 公開URL: https://hk5150.github.io/genai-passport-app/
+- リポジトリ: https://github.com/hk5150/genai-passport-app (public, GitHub Pages配信)
+- デプロイ方法: `main` ブランチのルートを GitHub Pages がそのまま配信(ビルドなし)。
+  更新は `git push origin main` するだけで数十秒〜数分で反映される。
+
 ## 1. これは何か
 生成AIパスポート試験(GUGA主催)の対策用クイズアプリ。公式テキスト全5章の
 目次構成に沿って、オリジナルの4択問題+解説を186問収録している。
