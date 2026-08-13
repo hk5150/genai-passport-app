@@ -27,6 +27,10 @@
     </div>
     <div class="statsRow" id="homeStats"></div>
 
+    <div class="sectionLabel">分野別演習</div>
+    <div id="chapterList"></div>
+
+    <div class="sectionLabel">力試し</div>
     <button class="primaryBtn" id="mockBtn">
       <span>模擬試験を始める<span class="sub">最大60問・ランダム出題</span></span>
       <span>›</span>
@@ -35,15 +39,15 @@
       <span>間違えた問題を復習 <span class="count"></span></span>
       <span>›</span>
     </button>
-
-    <div class="sectionLabel">分野別演習</div>
-    <div id="chapterList"></div>
   </div>
 
   <div id="quizScreen" class="screen">
     <div class="quizTop">
       <span class="progressLabel" id="progressLabel"></span>
-      <button class="quitBtn" id="quitBtn">中断してホームへ</button>
+      <div class="quizTopRight">
+        <span class="timerLabel" id="timerLabel"></span>
+        <button class="quitBtn" id="quitBtn">中断してホームへ</button>
+      </div>
     </div>
     <div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
     <div class="tagRow">

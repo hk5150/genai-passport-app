@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.4.0';
+const APP_VERSION = 'v1.5.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -9,22 +9,50 @@ const CHAPTERS = {
 };
 
 let QUESTIONS = [];
-let session = null; // {mode, order:[idx...], pos, answers:[{idx,selected,correct}], startedAt}
-let store = { history: [], wrong: {} }; // wrong: {questionKey: count}
+let session = null; // {mode, chapterOrNull, order:[idx...], pos, answers:[{idx,chosenIdx,correct}], startedAt}
+let store = { history: [], wrong: {}, inProgress: {} }; // wrong: {questionKey: count}, inProgress: {sessionKey: {order,answers,startedAt,qCount}}
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 function qKey(q){ return q.id || (q.ch + "|" + q.q.slice(0,12)); }
 
+// 模擬試験/分野別演習のみ中断→再開に対応(復習は誤答キューが変動するため対象外)
+function sessionKey(mode, chapterOrNull){
+  return mode === 'chapter' ? `chapter-${chapterOrNull}` : mode;
+}
+
 function loadStore(){
   try {
     const raw = localStorage.getItem('genai_passport_store_v1');
     if (raw) store = JSON.parse(raw);
   } catch(e){}
+  if (!store.wrong) store.wrong = {};
+  if (!store.history) store.history = [];
+  if (!store.inProgress) store.inProgress = {};
 }
 function saveStore(){
   try { localStorage.setItem('genai_passport_store_v1', JSON.stringify(store)); } catch(e){}
+}
+
+function saveInProgress(){
+  if (session.mode !== 'mock' && session.mode !== 'chapter') return;
+  const key = sessionKey(session.mode, session.chapterOrNull);
+  store.inProgress[key] = {
+    order: session.order,
+    answers: session.answers,
+    startedAt: session.startedAt,
+    qCount: QUESTIONS.length
+  };
+  saveStore();
+}
+
+// 中断中の未完了セッションがあれば {pos, total} を返す(ホーム画面の「つづきから」表示用)
+function getResumableProgress(key){
+  const ip = store.inProgress[key];
+  if (!ip || ip.qCount !== QUESTIONS.length) return null;
+  if (ip.answers.length >= ip.order.length) return null;
+  return { pos: ip.answers.length, total: ip.order.length };
 }
 
 function shuffle(arr){
@@ -54,13 +82,21 @@ function renderHome(){
 
   const chapCounts = {};
   QUESTIONS.forEach(q => chapCounts[q.ch] = (chapCounts[q.ch]||0)+1);
-  $('#chapterList').innerHTML = Object.keys(CHAPTERS).map(ch => `
+  $('#chapterList').innerHTML = Object.keys(CHAPTERS).map(ch => {
+    const prog = getResumableProgress(sessionKey('chapter', parseInt(ch)));
+    return `
     <button class="chapBtn" data-ch="${ch}">
-      <span class="chapName">${CHAPTERS[ch]}</span>
+      <span class="chapName">${CHAPTERS[ch]}${prog ? `<span class="chapResume">つづきから(${prog.pos}/${prog.total}問)</span>` : ''}</span>
       <span class="chapCount">${chapCounts[ch]||0}問</span>
     </button>
-  `).join('');
+  `;
+  }).join('');
   $$('.chapBtn').forEach(b => b.addEventListener('click', () => startSession('chapter', parseInt(b.dataset.ch))));
+
+  const mockProg = getResumableProgress('mock');
+  $('#mockBtn').querySelector('.sub').textContent = mockProg
+    ? `つづきから(${mockProg.pos}/${mockProg.total}問)`
+    : '最大60問・ランダム出題';
 
   const reviewBtn = $('#reviewBtn');
   reviewBtn.disabled = wrongCount === 0;
@@ -68,21 +104,40 @@ function renderHome(){
 }
 
 function startSession(mode, chapterOrNull){
-  let pool;
-  if (mode === 'mock'){
-    pool = shuffle(QUESTIONS.map((q,i)=>i)).slice(0, Math.min(60, QUESTIONS.length));
-  } else if (mode === 'chapter'){
-    pool = QUESTIONS.map((q,i)=>i).filter(i => QUESTIONS[i].ch === chapterOrNull);
-    pool = shuffle(pool);
-  } else if (mode === 'review'){
-    const keys = Object.keys(store.wrong).filter(k=>store.wrong[k]>0);
-    pool = QUESTIONS.map((q,i)=>i).filter(i => keys.includes(qKey(QUESTIONS[i])));
-    pool = shuffle(pool);
+  const key = sessionKey(mode, chapterOrNull);
+  const ip = (mode === 'mock' || mode === 'chapter') ? store.inProgress[key] : null;
+  const ipValid = !!(ip && ip.qCount === QUESTIONS.length);
+
+  // 中断時点で全問回答済みだったが結果画面まで進んでいなかった場合は、その結果を確定させる
+  if (ipValid && ip.answers.length >= ip.order.length && ip.order.length > 0){
+    session = { mode, order: ip.order, pos: ip.answers.length, answers: ip.answers, startedAt: ip.startedAt, chapterOrNull };
+    finishSession();
+    return;
   }
-  if (!pool.length){ alert('出題できる問題がありません。'); return; }
-  session = { mode, order: pool, pos: 0, answers: [], startedAt: Date.now(), chapterOrNull };
+
+  let order, answers, startedAt;
+  if (ipValid && ip.answers.length < ip.order.length){
+    order = ip.order; answers = ip.answers.slice(); startedAt = ip.startedAt;
+  } else {
+    let pool;
+    if (mode === 'mock'){
+      pool = shuffle(QUESTIONS.map((q,i)=>i)).slice(0, Math.min(60, QUESTIONS.length));
+    } else if (mode === 'chapter'){
+      // 分野別演習は出題順を維持(シャッフルしない)
+      pool = QUESTIONS.map((q,i)=>i).filter(i => QUESTIONS[i].ch === chapterOrNull);
+    } else if (mode === 'review'){
+      const keys = Object.keys(store.wrong).filter(k=>store.wrong[k]>0);
+      pool = QUESTIONS.map((q,i)=>i).filter(i => keys.includes(qKey(QUESTIONS[i])));
+      pool = shuffle(pool);
+    }
+    if (!pool.length){ alert('出題できる問題がありません。'); return; }
+    order = pool; answers = []; startedAt = Date.now();
+  }
+
+  session = { mode, order, pos: answers.length, answers, startedAt, chapterOrNull };
   screen('quizScreen');
   renderQuestion();
+  startTimer();
 }
 
 function renderQuestion(){
@@ -132,6 +187,7 @@ function answerQuestion(idx, chosenIdx){
     if (store.wrong[key]) store.wrong[key] = Math.max(0, store.wrong[key]-1);
   }
   saveStore();
+  saveInProgress(); // 中断→再開のため回答ごとに進捗を保存(模擬試験・分野別演習のみ)
 
   const headClass = correct ? 'ok' : (chosenIdx === null ? 'unknown' : 'ng');
   const headText = correct ? '正解 ◎' : (chosenIdx === null ? 'わからない' : '不正解 ×');
@@ -145,6 +201,47 @@ function answerQuestion(idx, chosenIdx){
   $('#nextBtn').textContent = session.pos + 1 < session.order.length ? '次の問題へ' : '結果を見る';
 }
 
+const MOCK_TIME_LIMIT_MS = 60 * 60 * 1000; // 模擬試験は60分の目安
+
+let timerInterval = null;
+
+function fmtTime(ms){
+  const totalSec = Math.max(0, Math.round(ms/1000));
+  const m = Math.floor(totalSec/60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function stopTimer(){
+  if (timerInterval){ clearInterval(timerInterval); timerInterval = null; }
+}
+
+function startTimer(){
+  stopTimer();
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
+}
+
+// 模擬試験は60分からのカウントダウン(0になったらそこまでの回答で自動終了)、
+// それ以外(分野別演習・復習)は経過時間のストップウォッチ表示。
+function updateTimer(){
+  if (!session) return;
+  const el = $('#timerLabel');
+  const elapsed = Date.now() - session.startedAt;
+  if (session.mode === 'mock'){
+    const remaining = MOCK_TIME_LIMIT_MS - elapsed;
+    el.textContent = `残り ${fmtTime(remaining)}`;
+    el.className = 'timerLabel' + (remaining <= 60000 ? ' danger' : remaining <= 5*60000 ? ' warn' : '');
+    if (remaining <= 0){
+      stopTimer();
+      finishSession();
+    }
+  } else {
+    el.textContent = `経過 ${fmtTime(elapsed)}`;
+    el.className = 'timerLabel';
+  }
+}
+
 function nextQuestion(){
   session.pos++;
   if (session.pos >= session.order.length){
@@ -155,10 +252,13 @@ function nextQuestion(){
 }
 
 function finishSession(){
+  stopTimer();
   const total = session.answers.length;
   const correctCount = session.answers.filter(a=>a.correct).length;
   const pct = Math.round((correctCount/total)*100);
   store.history.push({ date: Date.now(), mode: session.mode, total, correct: correctCount, pct, chapterOrNull: session.chapterOrNull||null });
+  const key = sessionKey(session.mode, session.chapterOrNull);
+  if (store.inProgress[key]) delete store.inProgress[key];
   saveStore();
 
   screen('resultScreen');
@@ -208,6 +308,7 @@ function init(){
   $('#nextBtn').addEventListener('click', nextQuestion);
   $('#quitBtn').addEventListener('click', () => {
     if (confirm('セッションを中断してホームに戻りますか？')){
+      stopTimer();
       renderHome(); screen('homeScreen');
     }
   });
