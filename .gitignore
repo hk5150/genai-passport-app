@@ -1,0 +1,6 @@
+node_modules/
+
+# scripts/sync-www.mjs が生成する。ソースはリポジトリのルート側
+www/
+
+.DS_Store

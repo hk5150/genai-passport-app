@@ -1,0 +1,9 @@
+{
+  "appId": "com.hk5150.genaipassport",
+  "appName": "GenAIPassport",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f6f8f7"
+  }
+}

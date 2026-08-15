@@ -1,0 +1,23 @@
+{
+  "name": "genai-passport-app",
+  "version": "1.8.0",
+  "description": "生成AIパスポート試験対策のクイズアプリ(PWA + iOS)",
+  "private": true,
+  "scripts": {
+    "serve": "npx serve .",
+    "sync:www": "node scripts/sync-www.mjs",
+    "ios:sync": "npm run sync:www && npx cap sync ios",
+    "ios:open": "npm run ios:sync && npx cap open ios"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hk5150/genai-passport-app.git"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/preferences": "^8.0.1"
+  }
+}

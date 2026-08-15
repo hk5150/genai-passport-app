@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.7.0';
+const APP_VERSION = 'v1.8.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -22,17 +22,47 @@ function sessionKey(mode, chapterOrNull){
   return mode === 'chapter' ? `chapter-${chapterOrNull}` : mode;
 }
 
-function loadStore(){
+const STORE_KEY = 'genai_passport_store_v1';
+
+// 永続化のバックエンドを実行環境で切り替える。
+// Web(GitHub Pages/PWA): localStorage
+// iOSアプリ(Capacitor): Preferences — WKWebViewのlocalStorageは端末のストレージが
+// 逼迫するとOSに破棄されうるため、学習履歴の保存先としては使えない。
+const isNative = () =>
+  !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function'
+     && window.Capacitor.isNativePlatform());
+const nativePrefs = () =>
+  (isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) || null;
+
+async function readRaw(){
+  const prefs = nativePrefs();
+  if (prefs){
+    const { value } = await prefs.get({ key: STORE_KEY });
+    return value;
+  }
+  try { return localStorage.getItem(STORE_KEY); } catch(e){ return null; }
+}
+
+async function writeRaw(raw){
+  const prefs = nativePrefs();
+  if (prefs){ await prefs.set({ key: STORE_KEY, value: raw }); return; }
+  try { localStorage.setItem(STORE_KEY, raw); } catch(e){}
+}
+
+// 起動時に一度だけ呼ぶ。以降はメモリ上の store が正で、読み直しは不要
+async function loadStore(){
   try {
-    const raw = localStorage.getItem('genai_passport_store_v1');
+    const raw = await readRaw();
     if (raw) store = JSON.parse(raw);
   } catch(e){}
   if (!store.wrong) store.wrong = {};
   if (!store.history) store.history = [];
   if (!store.inProgress) store.inProgress = {};
 }
+
+// 書き込みは非同期だが待たない。UIを止めないためで、失敗しても次の保存で回復する
 function saveStore(){
-  try { localStorage.setItem('genai_passport_store_v1', JSON.stringify(store)); } catch(e){}
+  writeRaw(JSON.stringify(store)).catch(()=>{});
 }
 
 function saveInProgress(){
@@ -70,7 +100,6 @@ function screen(id){
 }
 
 function renderHome(){
-  loadStore();
   const attempts = store.history.length;
   const avg = attempts ? Math.round(store.history.reduce((s,h)=>s+h.pct,0)/attempts) : null;
   const wrongCount = Object.keys(store.wrong).filter(k=>store.wrong[k]>0).length;
@@ -331,9 +360,21 @@ function finishSession(){
 function init(){
   $('#versionBadge').textContent = APP_VERSION;
 
-  fetch('./questions.json')
-    .then(r=>r.json())
-    .then(data => { QUESTIONS = data; renderHome(); screen('homeScreen'); });
+  // 永続化データ → 問題データの順に読み込む。
+  // loadStore を待たずに描画すると、受験履歴や「つづきから」が空のまま表示されてしまう
+  loadStore()
+    .then(() => fetch('./questions.json'))
+    .then(r => {
+      if (!r.ok) throw new Error(`questions.json の取得に失敗 (HTTP ${r.status})`);
+      return r.json();
+    })
+    .then(data => { QUESTIONS = data; renderHome(); screen('homeScreen'); })
+    .catch(err => {
+      console.error(err);
+      $('#homeStats').innerHTML =
+        `<p class="muted">問題データを読み込めませんでした。アプリを再起動してください。</p>`;
+      screen('homeScreen');
+    });
 
   $('#mockBtn').addEventListener('click', () => startSession('mock'));
   $('#reviewBtn').addEventListener('click', () => startSession('review'));

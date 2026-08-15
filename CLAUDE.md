@@ -12,12 +12,42 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npx serve .                  # ローカルプレビュー(.claude/launch.json もこれを5173番ポートで使用)
-# または
-python3 -m http.server 8080
+npm run serve                # Web版のローカルプレビュー(.claude/launch.json もこれを使用)
+npm run sync:www             # ルートの配信アセットを www/ にコピー
+npm run ios:sync             # www/ を更新して Capacitor に反映
+npm run ios:open             # 上記 + Xcode を開く
 ```
 
-`index.html` を `file://` で直接開くと `fetch('./questions.json')` がCORSでブロックされる。必ず上記のような簡易サーバー経由で確認すること。ビルド・テスト・lintコマンドは存在しない。
+`index.html` を `file://` で直接開くと `fetch('./questions.json')` がCORSでブロックされる。必ず簡易サーバー経由で確認すること。テスト・lintコマンドは存在しない。
+
+## iOSアプリ (Capacitor)
+
+Capacitor 8 で iOS アプリ化している。Capacitor 8 は CocoaPods ではなく Swift Package Manager を使う(`ios/App/CapApp-SPM`)。
+
+- Bundle ID: `com.hk5150.genaipassport` — **App Store提出後は変更不可**
+- ホーム画面の表示名: `AIパスポート`(`ios/App/App/Info.plist` の `CFBundleDisplayName`)
+- iPhone専用(`TARGETED_DEVICE_FAMILY = "1"`)。iPad対応にすると13インチのスクリーンショットが別途必須になる
+- 縦向き固定(`manifest.json` の `orientation` と揃えている)
+
+### ソースの置き場所と www/
+
+**ソースはリポジトリのルートに置いたまま**にする(GitHub Pages が main のルートをそのまま配信するため)。
+`www/` は `scripts/sync-www.mjs` が生成する中間ディレクトリで、gitignore 済み。**`www/` を直接編集しない。**
+
+`sw.js` は意図的に `www/` へコピーしない。Capacitor はアセットを `capacitor://localhost` からバンドル内で直接配信するため Service Worker が不要で、cache-first の SW は古いアセットを掴む害しかない。`index.html` 側でも `Capacitor.isNativePlatform()` を見て登録をスキップしている。
+
+静的ファイルを編集したら `npm run ios:sync` を実行しないとアプリ側に反映されない。
+
+### 永続化の分岐 (`app.js`)
+
+`readRaw`/`writeRaw` が実行環境で保存先を切り替える:
+
+| 環境 | 保存先 | 理由 |
+|---|---|---|
+| Web (GitHub Pages / PWA) | `localStorage` | 従来どおり |
+| iOSアプリ | `@capacitor/preferences` | WKWebViewの`localStorage`は端末のストレージ逼迫時にOSに破棄されうる |
+
+Preferences は非同期APIのため `loadStore()` が `async` になっている。**起動時に一度だけ `await` し、以降はメモリ上の `store` が正**(`renderHome()` から読み直さない)。`saveStore()` は結果を待たない fire-and-forget。
 
 ## Release checklist (毎回のgit push前に必須)
 
@@ -77,7 +107,7 @@ python3 -m http.server 8080
 | 5 | テキスト生成AIのプロンプト制作と実例 — LM/LLM, プロンプティング, ビジネス応用, 不得意なこと |
 
 ### PWA
-`manifest.json` + `sw.js`。Service Workerはアプリシェル(html/css/js/manifest/icons)をcache-first、`questions.json`はnetwork-firstで配信。アイコンは仮デザイン(紺地にAIロゴ)。ネイティブアプリ化(Capacitor等)は未実施。
+`manifest.json` + `sw.js`。Service Workerはアプリシェル(html/css/js/manifest/icons)をcache-first、`questions.json`はnetwork-firstで配信。**Web版のみで有効**(iOSアプリでは登録をスキップ)。アイコンは仮デザイン(紺地にAIロゴ)で、App Store提出には1024×1024・アルファなしの作り直しが必要。
 
 ## Content policy (問題追加時は必ず遵守)
 

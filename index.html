@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <title>生成AIパスポート 模試と全問解説</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#0b2e3a">
@@ -91,7 +91,14 @@
 </div>
 <script src="./app.js"></script>
 <script>
-if ('serviceWorker' in navigator) {
+// Service Worker はWeb版(GitHub Pages/PWA)専用。
+// Capacitorで動くiOSアプリはアセットをバンドル内から直接配信するためSWは不要で、
+// cache-first のSWを噛ませると古いアセットを掴む原因にしかならない。
+const isNativeApp = !!(window.Capacitor
+  && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform());
+
+if ('serviceWorker' in navigator && !isNativeApp) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch((err) => {
       console.error('SW registration failed:', err);

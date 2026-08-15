@@ -67,7 +67,18 @@ App Store の掲載名(30字)と、端末ホーム画面の表示名(`CFBundleDi
 AIパスポート
 ```
 
-`manifest.json` の `short_name` と `index.html` の `apple-mobile-web-app-title` が同じ値。Capacitor化の際は `CFBundleDisplayName` にもこれを設定する。
+`manifest.json` の `short_name`、`index.html` の `apple-mobile-web-app-title`、
+`ios/App/App/Info.plist` の `CFBundleDisplayName` の3か所が同じ値。**変更時は3か所とも揃える。**
+
+## iOSアプリの確定値(Capacitor)
+
+| 項目 | 値 | 備考 |
+|---|---|---|
+| Bundle ID | `com.hk5150.genaipassport` | **提出後は変更不可** |
+| 対応デバイス | iPhone専用 | iPad対応にすると13インチのスクリーンショットが別途必須 |
+| 向き | 縦向き固定 | レイアウトが max-width 640px の1カラム前提 |
+| 最低iOSバージョン | 15.0 | Capacitor 8 の既定 |
+| MARKETING_VERSION | 1.8.0 | `app.js` の `APP_VERSION` と揃える |
 
 ## その他の申請フィールド
 
@@ -87,10 +98,12 @@ AIパスポート
 - ~~シラバスの章立てが5章か8章か~~ → **5章で確定**(2026-08-15)。競合の「8つの章」表記は独自の分割
 - ~~問題数の増補(307問 → 500問超)~~ → **完了**(2026-08-16)。500問・各章100問
 - ~~選択肢の文字数バイアス修正~~ → **完了**(2026-08-16)
+- ~~Capacitor化(SW撤去/Preferences移行/SafeArea)~~ → **完了**(2026-08-16)
+- 審査ガイドライン4.2対策(ローカル通知/Haptics/統計画面)
 - プライバシーポリシー / サポートページの作成
 - アイコン1024×1024(アルファなし)の作成
 - スクリーンショット(iPhone 6.9インチ)の作成
-- Capacitor化(SW撤去/データ埋込/Preferences移行/SafeArea)
+- Apple Developer Program 登録 → 署名設定 → 申請
 
 ## 品質: 選択肢の文字数バイアス(対応済み)
 

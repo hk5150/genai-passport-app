@@ -19,9 +19,22 @@ body{
   color:var(--ink);
   min-height:100vh;
   -webkit-font-smoothing:antialiased;
+  /* iOSアプリで端まで引っ張ったときに白地が見えるのを防ぐ */
+  overscroll-behavior-y:none;
 }
+/* ボタンは長押しメニューや選択ハイライトが出るとネイティブアプリらしくないので抑える。
+   問題文・解説はコピーできるよう選択可能なまま残す */
+button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 #app{max-width:640px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
-.screen{display:none;flex:1;flex-direction:column;padding:20px 18px 40px;}
+/* viewport-fit=cover を指定しているため、ノッチとホームインジケータの分を自前で空ける */
+.screen{
+  display:none;flex:1;flex-direction:column;
+  padding:
+    calc(20px + env(safe-area-inset-top))
+    calc(18px + env(safe-area-inset-right))
+    calc(40px + env(safe-area-inset-bottom))
+    calc(18px + env(safe-area-inset-left));
+}
 .screen.active{display:flex;}
 
 /* HOME */
