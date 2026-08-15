@@ -84,6 +84,7 @@ body{
 .timerLabel{font-size:14px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;}
 .timerLabel.warn{color:var(--orange);}
 .timerLabel.danger{color:var(--ng);}
+.timerLabel.hidden{display:none;}
 .quizTopRight{display:flex;align-items:center;gap:12px;}
 .quitBtn{background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer;padding:4px;}
 .progressBar{height:6px;background:#e4e9e8;border-radius:3px;overflow:hidden;margin-bottom:18px;}
@@ -151,6 +152,7 @@ body{
 
 .wrongItem{background:var(--card);border-radius:12px;padding:14px;margin-bottom:10px;border-left:3px solid var(--ng);}
 .wrongItem.unknown{border-left-color:var(--orange);}
+.wrongItem .tag{display:inline-block;margin-bottom:8px;}
 .wrongQ{font-size:15px;font-weight:600;margin-bottom:6px;}
 .wrongYour{font-size:13px;color:var(--ng);}
 .wrongYour.unknown{color:var(--orange);}

@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.5.0';
+const APP_VERSION = 'v1.6.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -101,6 +101,36 @@ function renderHome(){
   const reviewBtn = $('#reviewBtn');
   reviewBtn.disabled = wrongCount === 0;
   reviewBtn.querySelector('.count').textContent = wrongCount ? `(${wrongCount}問)` : '';
+
+  const explainBtn = $('#explainListBtn');
+  explainBtn.disabled = wrongCount === 0;
+  explainBtn.querySelector('.count').textContent = wrongCount ? `(${wrongCount}問)` : '';
+}
+
+// 間違えた問題(誤答カウント>0)を再回答せず解説だけ一覧で読める画面
+function renderExplainList(){
+  const wrongKeys = new Set(Object.keys(store.wrong).filter(k => store.wrong[k] > 0));
+  const items = QUESTIONS.filter(q => wrongKeys.has(qKey(q)));
+
+  if (!items.length){
+    $('#explainList').innerHTML = `<p class="muted">復習が必要な問題はありません。</p>`;
+    return;
+  }
+
+  const byChap = {};
+  items.forEach(q => { (byChap[q.ch] = byChap[q.ch] || []).push(q); });
+
+  $('#explainList').innerHTML = Object.keys(byChap).sort((a,b)=>a-b).map(ch => `
+    <div class="sectionLabel">${CHAPTERS[ch]}(${byChap[ch].length}問)</div>
+    ${byChap[ch].map(q => `
+      <div class="wrongItem">
+        <span class="tag sec">${q.sec}</span>
+        <div class="wrongQ">${q.q}</div>
+        <div class="wrongCorrect">正解: ${q.c[q.a]}</div>
+        <div class="wrongExp">${q.e}</div>
+      </div>
+    `).join('')}
+  `).join('');
 }
 
 function startSession(mode, chapterOrNull){
@@ -216,29 +246,31 @@ function stopTimer(){
   if (timerInterval){ clearInterval(timerInterval); timerInterval = null; }
 }
 
+// タイマーは模擬試験のみ表示(分野別演習・復習には表示しない)
 function startTimer(){
   stopTimer();
+  const el = $('#timerLabel');
+  if (session.mode !== 'mock'){
+    el.textContent = '';
+    el.className = 'timerLabel hidden';
+    return;
+  }
+  el.className = 'timerLabel';
   updateTimer();
   timerInterval = setInterval(updateTimer, 1000);
 }
 
-// 模擬試験は60分からのカウントダウン(0になったらそこまでの回答で自動終了)、
-// それ以外(分野別演習・復習)は経過時間のストップウォッチ表示。
+// 模擬試験は60分からのカウントダウン(0になったらそこまでの回答で自動終了)
 function updateTimer(){
-  if (!session) return;
+  if (!session || session.mode !== 'mock') return;
   const el = $('#timerLabel');
   const elapsed = Date.now() - session.startedAt;
-  if (session.mode === 'mock'){
-    const remaining = MOCK_TIME_LIMIT_MS - elapsed;
-    el.textContent = `残り ${fmtTime(remaining)}`;
-    el.className = 'timerLabel' + (remaining <= 60000 ? ' danger' : remaining <= 5*60000 ? ' warn' : '');
-    if (remaining <= 0){
-      stopTimer();
-      finishSession();
-    }
-  } else {
-    el.textContent = `経過 ${fmtTime(elapsed)}`;
-    el.className = 'timerLabel';
+  const remaining = MOCK_TIME_LIMIT_MS - elapsed;
+  el.textContent = `残り ${fmtTime(remaining)}`;
+  el.className = 'timerLabel' + (remaining <= 60000 ? ' danger' : remaining <= 5*60000 ? ' warn' : '');
+  if (remaining <= 0){
+    stopTimer();
+    finishSession();
   }
 }
 
@@ -305,6 +337,8 @@ function init(){
 
   $('#mockBtn').addEventListener('click', () => startSession('mock'));
   $('#reviewBtn').addEventListener('click', () => startSession('review'));
+  $('#explainListBtn').addEventListener('click', () => { renderExplainList(); screen('explainScreen'); });
+  $('#explainBackBtn').addEventListener('click', () => { renderHome(); screen('homeScreen'); });
   $('#nextBtn').addEventListener('click', nextQuestion);
   $('#quitBtn').addEventListener('click', () => {
     if (confirm('セッションを中断してホームに戻りますか？')){
