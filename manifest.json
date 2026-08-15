@@ -1,7 +1,7 @@
 {
-  "name": "生成AIパスポート対策",
+  "name": "生成AIパスポート 模試と全問解説",
   "short_name": "AIパスポート",
-  "description": "生成AIパスポート試験対策の模擬試験・分野別演習アプリ",
+  "description": "全5章の分野別演習と60分模試。全問解説つきの生成AIパスポート試験対策アプリ",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
