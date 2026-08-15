@@ -49,6 +49,20 @@ Capacitor 8 で iOS アプリ化している。Capacitor 8 は CocoaPods では�
 
 Preferences は非同期APIのため `loadStore()` が `async` になっている。**起動時に一度だけ `await` し、以降はメモリ上の `store` が正**(`renderHome()` から読み直さない)。`saveStore()` は結果を待たない fire-and-forget。
 
+### ネイティブ専用機能(審査ガイドライン4.2対策)
+
+「Webサイトを包んだだけ」でリジェクトされないよう、ネイティブでしかできない機能を持たせている。
+
+| 機能 | 実装 | Web版での挙動 |
+|---|---|---|
+| 学習リマインダー | `@capacitor/local-notifications` で毎日同時刻に通知 | 設定行ごと非表示 |
+| 触覚フィードバック | `@capacitor/haptics`(正解=SUCCESS / 不正解=ERROR / わからない=LIGHT) | `navigator.vibrate` にフォールバック(iOS Safariは非対応) |
+| 学習データ画面 | 連続学習日数・のべ回答数・通算正答率・章別正答率・受験履歴 | Web版でも動作 |
+
+プラグインは `nativePlugin(name)` 経由で取得し、**必ず null チェックしてから使う**(Web版では常に null)。
+
+リマインダーは起動時に `reapplyReminderOnLaunch()` が予約の有無を確認して、無ければ入れ直す。端末の再起動やタイムゾーン変更で予約が消えても復旧するため。ここでは `requestPermissions` を呼ばず `checkPermissions` で許可済みのときだけ再予約する — 起動直後に唐突な許可ダイアログを出さないため。
+
 ## Release checklist (毎回のgit push前に必須)
 
 静的ファイル(`app.js`/`index.html`/`styles.css`/`manifest.json`)を1文字でも変更したら、以下2つを必ず両方更新する。どちらか片方だけ上げると不整合が起きる:
@@ -60,7 +74,7 @@ Preferences は非同期APIのため `loadStore()` が `async` になってい�
 
 ## Architecture
 
-3画面(ホーム/クイズ/結果)のSPA。`app.js` 内で状態を持ち、`screen(id)` が `.screen.active` クラスをトグルするだけの単純な切り替え。
+5画面(ホーム/クイズ/結果/誤答の解説一覧/学習データ)のSPA。`app.js` 内で状態を持ち、`screen(id)` が `.screen.active` クラスをトグルするだけの単純な切り替え。
 
 ### 状態管理の中心 (`app.js`)
 - `QUESTIONS`: `questions.json` をfetchした問題配列
@@ -69,6 +83,10 @@ Preferences は非同期APIのため `loadStore()` が `async` になってい�
   - `store.history`: 受験ごとの `{date, mode, total, correct, pct, chapterOrNull}`
   - `store.wrong`: 問題キー→誤答回数。正解すると1減算、0で復習キューから外れる
   - `store.inProgress[sessionKey]`: 模擬試験・分野別演習の中断→再開用データ `{order, answers, startedAt, qCount}`(`sessionKey` は `'mock'` または `'chapter-{章番号}'`)。復習モードは対象外(誤答キューが毎回変わるため)。`qCount` が現在の `QUESTIONS.length` と食い違えば無効化して最初から始める。
+  - `store.chapterStats`: `{章番号: {c:正解数, t:回答数}}`。学習データ画面の章別正答率用に回答ごとに積む(受験単位の `history` とは別物)
+  - `store.studyDays`: 学習した日 `'YYYY-MM-DD'` の配列。連続学習日数の算出に使う
+  - `store.reminder`: `{enabled, time}`。学習リマインダーの設定
+  - **`loadStore()` は未定義フィールドを必ず埋める。** 既存ユーザーのデータには後から追加したフィールドが無いため、増やしたら必ずここに追記すること
 - 問題キーは `qKey(q) = q.id || (q.ch + "|" + q.q.slice(0,12))`。現行データは全問 `id` を持つのでハッシュ式フォールバックは実質未使用。
 
 ### 主要関数 (`app.js`)

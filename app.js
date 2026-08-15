@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.8.0';
+const APP_VERSION = 'v1.9.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -31,8 +31,11 @@ const STORE_KEY = 'genai_passport_store_v1';
 const isNative = () =>
   !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function'
      && window.Capacitor.isNativePlatform());
-const nativePrefs = () =>
-  (isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) || null;
+// Capacitorのプラグインはネイティブ側のブリッジが window.Capacitor.Plugins に生やす。
+// Web版では常に null になるので、呼び出し側は必ず null チェックしてから使う
+const nativePlugin = (name) =>
+  (isNative() && window.Capacitor.Plugins && window.Capacitor.Plugins[name]) || null;
+const nativePrefs = () => nativePlugin('Preferences');
 
 async function readRaw(){
   const prefs = nativePrefs();
@@ -58,6 +61,10 @@ async function loadStore(){
   if (!store.wrong) store.wrong = {};
   if (!store.history) store.history = [];
   if (!store.inProgress) store.inProgress = {};
+  // 以下は v1.9.0 で追加。既存ユーザーのデータには無いので必ず埋める
+  if (!store.chapterStats) store.chapterStats = {};   // {章番号: {c:正解数, t:回答数}}
+  if (!store.studyDays) store.studyDays = [];          // 学習した日 'YYYY-MM-DD' の配列
+  if (!store.reminder) store.reminder = { enabled: false, time: '20:00' };
 }
 
 // 書き込みは非同期だが待たない。UIを止めないためで、失敗しても次の保存で回復する
@@ -83,6 +90,43 @@ function getResumableProgress(key){
   if (!ip || ip.qCount !== QUESTIONS.length) return null;
   if (ip.answers.length >= ip.order.length) return null;
   return { pos: ip.answers.length, total: ip.order.length };
+}
+
+// ---- 触覚フィードバック -------------------------------------------------
+// iOSアプリでは Taptic Engine を使う。Web版は Vibration API があれば使うが、
+// iOS Safari は非対応なので実質Androidのみ。どちらも無ければ何もしない
+function haptic(kind){
+  const H = nativePlugin('Haptics');
+  if (H){
+    if (kind === 'correct') H.notification({ type: 'SUCCESS' }).catch(()=>{});
+    else if (kind === 'wrong') H.notification({ type: 'ERROR' }).catch(()=>{});
+    else H.impact({ style: 'LIGHT' }).catch(()=>{});
+    return;
+  }
+  if (typeof navigator.vibrate === 'function'){
+    navigator.vibrate(kind === 'wrong' ? [35,40,35] : 18);
+  }
+}
+
+// ---- 学習日と連続日数 ---------------------------------------------------
+function dayKey(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// 今日まだ学習していない場合は昨日から数える。
+// 「日付が変わった瞬間に連続記録が途切れて見える」のを避けるため
+function currentStreak(){
+  const days = new Set(store.studyDays);
+  if (!days.size) return 0;
+  const d = new Date();
+  if (!days.has(dayKey(d))) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (days.has(dayKey(d))){ n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+
+function totalAnswered(){
+  return Object.values(store.chapterStats).reduce((s,v)=>s+v.t, 0);
 }
 
 function shuffle(arr){
@@ -134,6 +178,8 @@ function renderHome(){
   const explainBtn = $('#explainListBtn');
   explainBtn.disabled = wrongCount === 0;
   explainBtn.querySelector('.count').textContent = wrongCount ? `(${wrongCount}問)` : '';
+
+  renderReminder();
 }
 
 // 間違えた問題(誤答カウント>0)を再回答せず解説だけ一覧で読める画面
@@ -245,6 +291,15 @@ function answerQuestion(idx, chosenIdx){
   } else {
     if (store.wrong[key]) store.wrong[key] = Math.max(0, store.wrong[key]-1);
   }
+
+  // 学習データ画面のための累計。回答ごとに積む(受験履歴とは別に持つ)
+  const cs = store.chapterStats[q.ch] || (store.chapterStats[q.ch] = { c:0, t:0 });
+  cs.t++;
+  if (correct) cs.c++;
+  const today = dayKey(new Date());
+  if (!store.studyDays.includes(today)) store.studyDays.push(today);
+
+  haptic(correct ? 'correct' : (chosenIdx === null ? 'light' : 'wrong'));
   saveStore();
   saveInProgress(); // 中断→再開のため回答ごとに進捗を保存(模擬試験・分野別演習のみ)
 
@@ -357,13 +412,125 @@ function finishSession(){
   }).join('') : `<p class="muted">全問正解でした！</p>`;
 }
 
+// ---- 学習データ画面 -----------------------------------------------------
+function renderStats(){
+  const answered = totalAnswered();
+  const correct = Object.values(store.chapterStats).reduce((s,v)=>s+v.c, 0);
+  const pct = answered ? Math.round(correct/answered*100) : 0;
+
+  $('#statsHero').innerHTML = `
+    <div class="stat"><span class="num">${currentStreak()}</span><span class="lbl">連続学習日数</span></div>
+    <div class="stat"><span class="num">${answered}</span><span class="lbl">のべ回答数</span></div>
+    <div class="stat"><span class="num">${answered ? pct + '%' : '—'}</span><span class="lbl">通算正答率</span></div>
+  `;
+
+  // 章名が長く1行に収まらないため、名前と数値を上下2段にしている
+  $('#statsChapters').innerHTML = Object.keys(CHAPTERS).map(ch => {
+    const s = store.chapterStats[ch];
+    const done = !!(s && s.t);
+    const p = done ? Math.round(s.c/s.t*100) : 0;
+    // バーと数値は同じしきい値で色を合わせる(結果画面・履歴と同じ 70/50 基準)
+    const tone = done ? (p>=70 ? 'good' : p>=50 ? 'mid' : 'low') : 'none';
+    return `<div class="statChapRow">
+      <div class="statChapName">${CHAPTERS[ch]}</div>
+      <div class="statChapMeter">
+        <div class="breakBarWrap"><div class="breakBar ${tone}" style="width:${p}%"></div></div>
+        <span class="statChapNum ${tone}">${done ? `${p}%・${s.c}/${s.t}` : '未着手'}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const hist = store.history.slice(-10).reverse();
+  $('#statsHistory').innerHTML = hist.length ? hist.map(h => {
+    const d = new Date(h.date);
+    const label = h.mode === 'mock' ? '模擬試験'
+      : h.mode === 'review' ? '復習'
+      : `第${h.chapterOrNull}章`;
+    return `<div class="histRow">
+      <span class="histDate">${d.getMonth()+1}/${d.getDate()}</span>
+      <span class="histMode">${label}</span>
+      <span class="histScore ${h.pct>=70?'good':h.pct>=50?'mid':'low'}">${h.correct}/${h.total}・${h.pct}%</span>
+    </div>`;
+  }).join('') : `<p class="muted">まだ受験記録がありません。</p>`;
+}
+
+// ---- 学習リマインダー(iOSアプリのみ) ----------------------------------
+const REMINDER_ID = 1;
+
+async function applyReminder(){
+  const LN = nativePlugin('LocalNotifications');
+  if (!LN) return { ok:false, reason:'unsupported' };
+
+  // 時刻変更のたびに古い予約を消してから入れ直す
+  await LN.cancel({ notifications: [{ id: REMINDER_ID }] }).catch(()=>{});
+  if (!store.reminder.enabled) return { ok:true };
+
+  const perm = await LN.requestPermissions();
+  if (perm.display !== 'granted') return { ok:false, reason:'denied' };
+
+  const [h, m] = store.reminder.time.split(':').map(Number);
+  await LN.schedule({ notifications: [{
+    id: REMINDER_ID,
+    title: '生成AIパスポート',
+    body: '今日の学習を始めましょう。10問だけでも積み重ねになります。',
+    schedule: { on: { hour: h, minute: m }, repeats: true, allowWhileIdle: true }
+  }]});
+  return { ok:true };
+}
+
+function renderReminder(){
+  const row = $('#reminderRow');
+  // 通知はネイティブ専用。Web版では行ごと出さない
+  if (!nativePlugin('LocalNotifications')){ row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  $('#reminderToggle').checked = !!store.reminder.enabled;
+  $('#reminderTime').value = store.reminder.time;
+  $('#reminderTime').disabled = !store.reminder.enabled;
+  $('#reminderSub').textContent = store.reminder.enabled
+    ? `毎日 ${store.reminder.time} に通知します`
+    : '毎日きまった時刻に通知します';
+}
+
+async function onReminderChanged(){
+  store.reminder.enabled = $('#reminderToggle').checked;
+  store.reminder.time = $('#reminderTime').value || '20:00';
+  const res = await applyReminder();
+  if (!res.ok && res.reason === 'denied'){
+    store.reminder.enabled = false;
+    alert('通知が許可されていません。iOSの「設定」アプリ内のこのアプリの項目から通知を許可してください。');
+  }
+  saveStore();
+  renderReminder();
+}
+
+// 起動時に予約を入れ直す。iOSは予約済み通知をアプリ再起動後も保持するが、
+// 端末の再起動やタイムゾーン変更などで失われることがある。
+// ここでは requestPermissions を呼ばない — 起動直後に唐突な許可ダイアログを出さないため、
+// 既に許可済みのときだけ入れ直す
+async function reapplyReminderOnLaunch(){
+  const LN = nativePlugin('LocalNotifications');
+  if (!LN || !store.reminder.enabled) return;
+  try {
+    const perm = await LN.checkPermissions();
+    if (perm.display !== 'granted') return;
+    const pending = await LN.getPending();
+    if (pending.notifications.some(n => n.id === REMINDER_ID)) return; // 既に入っている
+    await applyReminder();
+  } catch(e){
+    // 通知が使えなくても学習機能そのものには影響しないので握りつぶす
+  }
+}
+
 function init(){
   $('#versionBadge').textContent = APP_VERSION;
 
   // 永続化データ → 問題データの順に読み込む。
   // loadStore を待たずに描画すると、受験履歴や「つづきから」が空のまま表示されてしまう
   loadStore()
-    .then(() => fetch('./questions.json'))
+    .then(() => {
+      reapplyReminderOnLaunch();  // 待たない(問題データの表示を遅らせないため)
+      return fetch('./questions.json');
+    })
     .then(r => {
       if (!r.ok) throw new Error(`questions.json の取得に失敗 (HTTP ${r.status})`);
       return r.json();
@@ -380,6 +547,10 @@ function init(){
   $('#reviewBtn').addEventListener('click', () => startSession('review'));
   $('#explainListBtn').addEventListener('click', () => { renderExplainList(); screen('explainScreen'); });
   $('#explainBackBtn').addEventListener('click', () => { renderHome(); screen('homeScreen'); });
+  $('#statsBtn').addEventListener('click', () => { renderStats(); screen('statsScreen'); });
+  $('#statsBackBtn').addEventListener('click', () => { renderHome(); screen('homeScreen'); });
+  $('#reminderToggle').addEventListener('change', onReminderChanged);
+  $('#reminderTime').addEventListener('change', onReminderChanged);
   $('#nextBtn').addEventListener('click', nextQuestion);
   $('#quitBtn').addEventListener('click', () => {
     if (confirm('セッションを中断してホームに戻りますか？')){

@@ -43,6 +43,25 @@
       <span>間違えた問題の解説を見る <span class="count"></span></span>
       <span>›</span>
     </button>
+
+    <div class="sectionLabel">記録</div>
+    <button class="secondaryBtn" id="statsBtn">
+      <span>学習データを見る</span>
+      <span>›</span>
+    </button>
+
+    <!-- 通知はiOSアプリでのみ使えるため、Web版では JS 側で hidden のまま残す -->
+    <div class="reminderRow hidden" id="reminderRow">
+      <div class="reminderText">
+        <span class="reminderLabel">学習リマインダー</span>
+        <span class="reminderSub" id="reminderSub">毎日きまった時刻に通知します</span>
+      </div>
+      <input type="time" id="reminderTime" value="20:00" aria-label="通知する時刻">
+      <label class="switch">
+        <input type="checkbox" id="reminderToggle" aria-label="学習リマインダーの有効・無効">
+        <span class="switchTrack"></span>
+      </label>
+    </div>
   </div>
 
   <div id="quizScreen" class="screen">
@@ -86,6 +105,18 @@
       <button class="quitBtn" id="explainBackBtn">ホームへ</button>
     </div>
     <div id="explainList"></div>
+  </div>
+
+  <div id="statsScreen" class="screen">
+    <div class="quizTop">
+      <span class="progressLabel">学習データ</span>
+      <button class="quitBtn" id="statsBackBtn">ホームへ</button>
+    </div>
+    <div class="statsRow" id="statsHero"></div>
+    <div class="sectionLabel">章別の正答率</div>
+    <div class="breakdownCard" id="statsChapters"></div>
+    <div class="sectionLabel">最近の受験</div>
+    <div id="statsHistory"></div>
   </div>
 
 </div>

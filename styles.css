@@ -174,3 +174,63 @@ button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 
 .resultBtnRow{display:flex;gap:10px;margin-top:6px;}
 .resultBtnRow button{flex:1;}
+
+/* 学習データ画面の章別正答率(章名が長いので名前と数値を2段に分ける) */
+.statChapRow{margin-bottom:14px;}
+.statChapRow:last-child{margin-bottom:0;}
+.statChapName{font-size:14px;font-weight:600;margin-bottom:6px;}
+.statChapMeter{display:flex;align-items:center;gap:10px;}
+.statChapNum{
+  flex:none;min-width:76px;text-align:right;
+  font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.statChapNum.good{color:var(--ok);}
+.statChapNum.mid{color:var(--orange);}
+.statChapNum.low{color:var(--ng);}
+.statChapNum.none{color:var(--muted);font-weight:400;}
+.breakBar.good{background:var(--ok);}
+.breakBar.mid{background:var(--orange);}
+.breakBar.low{background:var(--ng);}
+
+/* 学習データ画面の受験履歴 */
+.histRow{
+  display:flex;align-items:center;gap:12px;
+  background:var(--card);border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:14px;
+}
+.histDate{width:44px;flex:none;color:var(--muted);font-variant-numeric:tabular-nums;}
+.histMode{flex:1;font-weight:600;}
+.histScore{flex:none;font-weight:700;font-variant-numeric:tabular-nums;}
+.histScore.good{color:var(--ok);}
+.histScore.mid{color:var(--orange);}
+.histScore.low{color:var(--ng);}
+
+/* 学習リマインダー(iOSアプリのみ表示) */
+.reminderRow{
+  display:flex;align-items:center;gap:12px;
+  background:var(--card);border-radius:var(--radius);padding:14px 16px;margin-top:8px;
+  box-shadow:0 1px 3px rgba(11,46,58,.08);
+}
+.reminderRow.hidden{display:none;}
+.reminderText{flex:1;min-width:0;}
+.reminderLabel{display:block;font-size:15px;font-weight:600;}
+.reminderSub{display:block;font-size:12px;color:var(--muted);margin-top:2px;}
+.reminderRow input[type="time"]{
+  flex:none;border:1px solid #d8e0df;border-radius:8px;padding:6px 8px;
+  font-size:15px;font-family:inherit;color:var(--ink);background:var(--bg);
+}
+.reminderRow input[type="time"]:disabled{opacity:.4;}
+
+/* トグルスイッチ(チェックボックスを隠して見た目だけ差し替える) */
+.switch{flex:none;position:relative;display:inline-block;width:46px;height:28px;}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;}
+.switchTrack{
+  position:absolute;inset:0;background:#ccd6d5;border-radius:999px;
+  transition:background .18s ease;pointer-events:none;
+}
+.switchTrack::after{
+  content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;
+  background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.2);
+  transition:transform .18s ease;
+}
+.switch input:checked + .switchTrack{background:var(--teal);}
+.switch input:checked + .switchTrack::after{transform:translateX(18px);}
