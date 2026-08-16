@@ -72,6 +72,26 @@ Preferences は非同期APIのため `loadStore()` が `async` になってい�
 
 `questions.json` はnetwork-first配信なのでこの問題は起きないが、それ以外の静的アセットは常に注意。
 
+### `CACHE_NAME` を上げても防げないケース(2026-08-16に実際に踏んだ)
+
+Service Workerのインストールが**GitHub Pagesの配信切り替えと重なる**と、新しい`CACHE_NAME`のキャッシュに**古い`index.html`が焼き付く**。以降は`CACHE_NAME`を上げるまで stale なシェルが配られ続ける。
+
+このとき「古い`index.html` + 新しい`app.js`」という組み合わせが生まれる。`app.js`が新要素(`#statsBtn`等)を掴もうとして例外が出ると、**`init()`がそこで止まり、以降のボタンが一切登録されない**。実際に「次の問題へ」が効かず回答から進めない状態になった。
+
+対策として `on(sel, ev, fn)` ヘルパーを用意し、`init()` のリスナー登録は必ずこれを使う:
+
+```js
+function on(sel, ev, fn){
+  const el = $(sel);
+  if (el) el.addEventListener(ev, fn);
+  else console.warn(`要素が見つかりません: ${sel}`);
+}
+```
+
+**新しいDOM要素を参照するコードを足すときは、その要素が無い場合でも他の機能が死なないようにすること。** 同様の理由で `renderReminder()` も `#reminderRow` の存在チェックから始めている。
+
+デプロイ後の動作確認では、ブラウザのSWを登録解除してから見ないと古いシェルを掴んだままになる。
+
 ## Architecture
 
 5画面(ホーム/クイズ/結果/誤答の解説一覧/学習データ)のSPA。`app.js` 内で状態を持ち、`screen(id)` が `.screen.active` クラスをトグルするだけの単純な切り替え。

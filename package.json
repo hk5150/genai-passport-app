@@ -1,6 +1,6 @@
 {
   "name": "genai-passport-app",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "生成AIパスポート試験対策のクイズアプリ(PWA + iOS)",
   "private": true,
   "scripts": {

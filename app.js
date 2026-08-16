@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.9.0';
+const APP_VERSION = 'v1.9.1';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -14,6 +14,17 @@ let store = { history: [], wrong: {}, inProgress: {} }; // wrong: {questionKey: 
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+// 要素が無くても落ちないリスナー登録。
+// Service Workerのキャッシュに古い index.html が残り、新しい app.js と組み合わさると
+// 存在しない要素を掴んで例外が出る。素朴に $(sel).addEventListener と書くと、
+// そこで init() が止まり以降のボタン(「次の問題へ」など)が一切効かなくなる。
+// 1つ欠けても残りは動くようにしておく
+function on(sel, ev, fn){
+  const el = $(sel);
+  if (el) el.addEventListener(ev, fn);
+  else console.warn(`要素が見つかりません: ${sel}`);
+}
 
 function qKey(q){ return q.id || (q.ch + "|" + q.q.slice(0,12)); }
 
@@ -480,6 +491,7 @@ async function applyReminder(){
 
 function renderReminder(){
   const row = $('#reminderRow');
+  if (!row) return;  // 古いindex.htmlがキャッシュに残っている場合に備える
   // 通知はネイティブ専用。Web版では行ごと出さない
   if (!nativePlugin('LocalNotifications')){ row.classList.add('hidden'); return; }
   row.classList.remove('hidden');
@@ -543,23 +555,23 @@ function init(){
       screen('homeScreen');
     });
 
-  $('#mockBtn').addEventListener('click', () => startSession('mock'));
-  $('#reviewBtn').addEventListener('click', () => startSession('review'));
-  $('#explainListBtn').addEventListener('click', () => { renderExplainList(); screen('explainScreen'); });
-  $('#explainBackBtn').addEventListener('click', () => { renderHome(); screen('homeScreen'); });
-  $('#statsBtn').addEventListener('click', () => { renderStats(); screen('statsScreen'); });
-  $('#statsBackBtn').addEventListener('click', () => { renderHome(); screen('homeScreen'); });
-  $('#reminderToggle').addEventListener('change', onReminderChanged);
-  $('#reminderTime').addEventListener('change', onReminderChanged);
-  $('#nextBtn').addEventListener('click', nextQuestion);
-  $('#quitBtn').addEventListener('click', () => {
+  on('#mockBtn', 'click', () => startSession('mock'));
+  on('#reviewBtn', 'click', () => startSession('review'));
+  on('#explainListBtn', 'click', () => { renderExplainList(); screen('explainScreen'); });
+  on('#explainBackBtn', 'click', () => { renderHome(); screen('homeScreen'); });
+  on('#statsBtn', 'click', () => { renderStats(); screen('statsScreen'); });
+  on('#statsBackBtn', 'click', () => { renderHome(); screen('homeScreen'); });
+  on('#reminderToggle', 'change', onReminderChanged);
+  on('#reminderTime', 'change', onReminderChanged);
+  on('#nextBtn', 'click', nextQuestion);
+  on('#quitBtn', 'click', () => {
     if (confirm('セッションを中断してホームに戻りますか？')){
       stopTimer();
       renderHome(); screen('homeScreen');
     }
   });
-  $('#homeFromResult').addEventListener('click', () => { renderHome(); screen('homeScreen'); });
-  $('#retryFromResult').addEventListener('click', () => {
+  on('#homeFromResult', 'click', () => { renderHome(); screen('homeScreen'); });
+  on('#retryFromResult', 'click', () => {
     if (session.mode==='chapter') startSession('chapter', session.chapterOrNull);
     else startSession(session.mode);
   });
