@@ -145,7 +145,30 @@ function on(sel, ev, fn){
 | 5 | テキスト生成AIのプロンプト制作と実例 — LM/LLM, プロンプティング, ビジネス応用, 不得意なこと |
 
 ### PWA
-`manifest.json` + `sw.js`。Service Workerはアプリシェル(html/css/js/manifest/icons)をcache-first、`questions.json`はnetwork-firstで配信。**Web版のみで有効**(iOSアプリでは登録をスキップ)。アイコンは仮デザイン(紺地にAIロゴ)で、App Store提出には1024×1024・アルファなしの作り直しが必要。
+`manifest.json` + `sw.js`。Service Workerはアプリシェル(html/css/js/manifest/icons)をcache-first、`questions.json`はnetwork-firstで配信。**Web版のみで有効**(iOSアプリでは登録をスキップ)。
+
+## アイコン
+
+**`scripts/make-icons.py` が単一ソースから全サイズを書き出す。** 個々のPNGを手で編集しないこと。
+
+```bash
+python3 scripts/make-icons.py
+```
+
+| 出力先 | 用途 |
+|---|---|
+| `icons/appstore-1024.png` | App Store Connectへのアップロード用。**アルファなし・角丸なし** |
+| `icons/icon-192.png` / `icon-512.png` | PWA |
+| `icons/icon-maskable-512.png` | PWA maskable。中央80%の円に収まるよう全体を74%に縮めている |
+| `icons/apple-touch-icon.png` | 180px |
+| `ios/.../AppIcon.appiconset/AppIcon-512@2x.png` | Xcode(1024の単一スロット) |
+
+デザインは**ネイビー地に合格スタンプ + 「生成AI パスポート」**。試験名の「パスポート」を入国スタンプに見立てたもの。競合27本は文字を敷き詰めた四角ばかりなので、円形とオレンジ(`--orange`)で検索結果での識別性を稼いでいる。
+
+注意点:
+- **文字は幅の74%までに収める。** iOSの角丸マスク(半径は幅の約22.4%)に削られないため
+- アイコンは `sw.js` の `APP_SHELL` に含まれるので、**差し替えたら `CACHE_NAME` も上げる**
+- 変更後は `npm run ios:sync` を実行しないとアプリ側に反映されない
 
 ## Content policy (問題追加時は必ず遵守)
 

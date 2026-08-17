@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.9.1';
+const APP_VERSION = 'v1.9.2';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
