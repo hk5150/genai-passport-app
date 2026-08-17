@@ -119,6 +119,18 @@
     <div id="statsHistory"></div>
   </div>
 
+  <!-- confirm()/alert() の代替。WKWebViewのネイティブダイアログはボタンが
+       「Cancel」「Ok」と英語で出てしまうため、自前で用意している -->
+  <div class="modalOverlay hidden" id="modalOverlay">
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="modalMsg">
+      <p class="modalMsg" id="modalMsg"></p>
+      <div class="modalBtnRow">
+        <button class="modalBtn" id="modalCancel">キャンセル</button>
+        <button class="modalBtn primary" id="modalOk">OK</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 <script src="./app.js"></script>
 <script>

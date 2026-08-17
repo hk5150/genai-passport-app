@@ -110,6 +110,7 @@ function on(sel, ev, fn){
 - 問題キーは `qKey(q) = q.id || (q.ch + "|" + q.q.slice(0,12))`。現行データは全問 `id` を持つのでハッシュ式フォールバックは実質未使用。
 
 ### 主要関数 (`app.js`)
+`showAlert`/`showConfirm` — 自前のダイアログ。**素の `confirm()`/`alert()` を使わないこと** — WKWebViewがネイティブのダイアログを描画し、ボタンが「Cancel」「Ok」と英語で出てしまう
 `loadStore`/`saveStore`/`saveInProgress`/`getResumableProgress` — 永続化まわり
 `startSession(mode, chapterOrNull)` — 出題開始・再開判定
 `renderQuestion` / `answerQuestion(idx, chosenIdx)` — 出題・採点(`chosenIdx=null` で「わからない」を表現。不正解扱いだが誤答ハイライトはしない)
@@ -169,6 +170,19 @@ python3 scripts/make-icons.py
 - **文字は幅の74%までに収める。** iOSの角丸マスク(半径は幅の約22.4%)に削られないため
 - アイコンは `sw.js` の `APP_SHELL` に含まれるので、**差し替えたら `CACHE_NAME` も上げる**
 - 変更後は `npm run ios:sync` を実行しないとアプリ側に反映されない
+
+## App Store提出物
+
+申請フィールドの確定値は **`docs/appstore-listing.md`** に集約している。申請時はそれを見ながら入力する。
+
+| 提出物 | 置き場所 |
+|---|---|
+| アイコン | `icons/appstore-1024.png`(生成は `scripts/make-icons.py`) |
+| スクリーンショット | `docs/screenshots/`(7点・1320×2868・RGB。撮り直し手順は同ディレクトリのREADME) |
+| プライバシーポリシー | `privacy.html` → https://hk5150.github.io/genai-passport-app/privacy.html |
+| サポートページ | `support.html` → https://hk5150.github.io/genai-passport-app/support.html |
+
+`privacy.html` と `support.html` は**連絡先が未記入**。公開前に埋めること(該当箇所は橙色の枠で示してある)。
 
 ## Content policy (問題追加時は必ず遵守)
 

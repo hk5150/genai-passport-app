@@ -175,6 +175,30 @@ button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .resultBtnRow{display:flex;gap:10px;margin-top:6px;}
 .resultBtnRow button{flex:1;}
 
+/* 自前のダイアログ(WKWebViewの英語ボタンを避けるため) */
+.modalOverlay{
+  position:fixed;inset:0;z-index:100;
+  display:flex;align-items:center;justify-content:center;
+  padding:calc(24px + env(safe-area-inset-left)) 24px;
+  background:rgba(11,46,58,.55);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+}
+.modalOverlay.hidden{display:none;}
+.modalCard{
+  width:100%;max-width:340px;background:var(--card);
+  border-radius:18px;padding:24px 22px 18px;
+  box-shadow:0 18px 48px rgba(11,46,58,.32);
+}
+.modalMsg{margin:0 0 20px;font-size:15px;line-height:1.65;white-space:pre-line;}
+.modalBtnRow{display:flex;gap:10px;}
+.modalBtn{
+  flex:1;padding:13px 8px;border:1px solid #d8e0df;border-radius:11px;
+  background:var(--bg);color:var(--ink);
+  font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;
+}
+.modalBtn.primary{background:var(--teal);border-color:var(--teal);color:#fff;}
+.modalBtn.hidden{display:none;}
+
 /* 学習データ画面の章別正答率(章名が長いので名前と数値を2段に分ける) */
 .statChapRow{margin-bottom:14px;}
 .statChapRow:last-child{margin-bottom:0;}

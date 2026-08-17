@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.9.2';
+const APP_VERSION = 'v1.9.3';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -154,6 +154,38 @@ function screen(id){
   $('#'+id).classList.add('active');
 }
 
+// ---- 自前のダイアログ ---------------------------------------------------
+// confirm()/alert() はWKWebViewがネイティブのダイアログを描画し、ボタンが
+// 「Cancel」「Ok」と英語で出る。日本語UIの中で浮くので自前に置き換えた。
+// 戻り値は Promise<boolean>。cancel を渡さなければ通知だけのダイアログになる。
+function showDialog(message, { ok = 'OK', cancel = null } = {}){
+  return new Promise((resolve) => {
+    const ov = $('#modalOverlay');
+    // 古いindex.htmlがキャッシュに残っていた場合は標準ダイアログにフォールバック
+    if (!ov){ resolve(cancel ? window.confirm(message) : (window.alert(message), true)); return; }
+
+    $('#modalMsg').textContent = message;
+    const okBtn = $('#modalOk'), cancelBtn = $('#modalCancel');
+    okBtn.textContent = ok;
+    cancelBtn.textContent = cancel || '';
+    cancelBtn.classList.toggle('hidden', !cancel);
+    ov.classList.remove('hidden');
+    okBtn.focus();
+
+    const done = (v) => {
+      ov.classList.add('hidden');
+      okBtn.onclick = cancelBtn.onclick = ov.onclick = null;
+      resolve(v);
+    };
+    okBtn.onclick = () => done(true);
+    cancelBtn.onclick = () => done(false);
+    // 背景タップで閉じるのは、キャンセルできるダイアログのときだけ
+    ov.onclick = (e) => { if (e.target === ov && cancel) done(false); };
+  });
+}
+const showAlert   = (m) => showDialog(m);
+const showConfirm = (m, ok = 'OK', cancel = 'キャンセル') => showDialog(m, { ok, cancel });
+
 function renderHome(){
   const attempts = store.history.length;
   const avg = attempts ? Math.round(store.history.reduce((s,h)=>s+h.pct,0)/attempts) : null;
@@ -246,7 +278,7 @@ function startSession(mode, chapterOrNull){
       pool = QUESTIONS.map((q,i)=>i).filter(i => keys.includes(qKey(QUESTIONS[i])));
       pool = shuffle(pool);
     }
-    if (!pool.length){ alert('出題できる問題がありません。'); return; }
+    if (!pool.length){ showAlert('出題できる問題がありません。'); return; }
     order = pool; answers = []; startedAt = Date.now();
   }
 
@@ -509,7 +541,7 @@ async function onReminderChanged(){
   const res = await applyReminder();
   if (!res.ok && res.reason === 'denied'){
     store.reminder.enabled = false;
-    alert('通知が許可されていません。iOSの「設定」アプリ内のこのアプリの項目から通知を許可してください。');
+    await showAlert('通知が許可されていません。iOSの「設定」アプリ内のこのアプリの項目から通知を許可してください。');
   }
   saveStore();
   renderReminder();
@@ -564,8 +596,9 @@ function init(){
   on('#reminderToggle', 'change', onReminderChanged);
   on('#reminderTime', 'change', onReminderChanged);
   on('#nextBtn', 'click', nextQuestion);
-  on('#quitBtn', 'click', () => {
-    if (confirm('セッションを中断してホームに戻りますか？')){
+  on('#quitBtn', 'click', async () => {
+    // 中断しても進捗は保存されるので、その旨を伝えて不安を減らす
+    if (await showConfirm('セッションを中断してホームに戻ります。\nここまでの回答は保存され、つづきから再開できます。', '中断する', 'つづける')){
       stopTimer();
       renderHome(); screen('homeScreen');
     }
