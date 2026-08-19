@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.9.3';
+const APP_VERSION = 'v1.10.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -9,7 +9,10 @@ const CHAPTERS = {
 };
 
 let QUESTIONS = [];
-let session = null; // {mode, chapterOrNull, order:[idx...], pos, answers:[{idx,chosenIdx,correct}], startedAt}
+let session = null; // {mode, chapterOrNull, order:[idx...], viewPos, answers:[{idx,chosenIdx,correct}], startedAt}
+// viewPos: 現在表示中の問題インデックス。answers.length より小さければ「回答済みを閲覧中」、
+// 等しければ「未回答のライブ問題」。前の問題に戻る/進むはこの値を動かすだけで、
+// 回答済み範囲は読み取り専用(選び直しはできない)
 let store = { history: [], wrong: {}, inProgress: {} }; // wrong: {questionKey: count}, inProgress: {sessionKey: {order,answers,startedAt,qCount}}
 
 const $ = (sel) => document.querySelector(sel);
@@ -200,10 +203,22 @@ function renderHome(){
   QUESTIONS.forEach(q => chapCounts[q.ch] = (chapCounts[q.ch]||0)+1);
   $('#chapterList').innerHTML = Object.keys(CHAPTERS).map(ch => {
     const prog = getResumableProgress(sessionKey('chapter', parseInt(ch)));
+    // 章別の学習進捗(累計正答率)。学習データ画面と同じ store.chapterStats を使い、
+    // 分野別演習を選ぶ時点で各章の仕上がり具合が一目でわかるようにする
+    const s = store.chapterStats[ch];
+    const done = !!(s && s.t);
+    const p = done ? Math.round(s.c/s.t*100) : 0;
+    const tone = done ? (p>=70 ? 'good' : p>=50 ? 'mid' : 'low') : 'none';
     return `
     <button class="chapBtn" data-ch="${ch}">
-      <span class="chapName">${CHAPTERS[ch]}${prog ? `<span class="chapResume">つづきから(${prog.pos}/${prog.total}問)</span>` : ''}</span>
-      <span class="chapCount">${chapCounts[ch]||0}問</span>
+      <div class="chapBtnMain">
+        <span class="chapName">${CHAPTERS[ch]}${prog ? `<span class="chapResume">つづきから(${prog.pos}/${prog.total}問)</span>` : ''}</span>
+        <span class="chapCount">${chapCounts[ch]||0}問</span>
+      </div>
+      <div class="chapProgress">
+        <div class="breakBarWrap"><div class="breakBar ${tone}" style="width:${p}%"></div></div>
+        <span class="chapProgressNum ${tone}">${done ? `${p}%・${s.c}/${s.t}` : '未着手'}</span>
+      </div>
     </button>
   `;
   }).join('');
@@ -258,7 +273,7 @@ function startSession(mode, chapterOrNull){
 
   // 中断時点で全問回答済みだったが結果画面まで進んでいなかった場合は、その結果を確定させる
   if (ipValid && ip.answers.length >= ip.order.length && ip.order.length > 0){
-    session = { mode, order: ip.order, pos: ip.answers.length, answers: ip.answers, startedAt: ip.startedAt, chapterOrNull };
+    session = { mode, order: ip.order, viewPos: ip.answers.length, answers: ip.answers, startedAt: ip.startedAt, chapterOrNull };
     finishSession();
     return;
   }
@@ -282,50 +297,87 @@ function startSession(mode, chapterOrNull){
     order = pool; answers = []; startedAt = Date.now();
   }
 
-  session = { mode, order, pos: answers.length, answers, startedAt, chapterOrNull };
+  session = { mode, order, viewPos: answers.length, answers, startedAt, chapterOrNull };
   screen('quizScreen');
   renderQuestion();
   startTimer();
 }
 
+// viewPos が answers.length 未満なら「回答済みを閲覧中」(読み取り専用)、
+// 等しければ「未回答のライブ問題」(通常の解答フロー)。
+// 「前の問題へ」「次の問題へ」はどちらも viewPos を動かして再描画するだけなので、
+// 回答済み範囲の行き来と、ライブ問題への復帰が同じ仕組みで扱える
 function renderQuestion(){
-  const idx = session.order[session.pos];
+  const viewIdx = session.viewPos;
+  const idx = session.order[viewIdx];
   const q = QUESTIONS[idx];
-  $('#progressLabel').textContent = `${session.pos+1} / ${session.order.length}`;
-  $('#progressFill').style.width = `${((session.pos)/session.order.length)*100}%`;
+  const isAnswered = viewIdx < session.answers.length;
+  const ans = isAnswered ? session.answers[viewIdx] : null;
+
+  $('#progressLabel').textContent = `${viewIdx+1} / ${session.order.length}`;
+  $('#progressFill').style.width = `${(viewIdx/session.order.length)*100}%`;
   $('#chapTag').textContent = CHAPTERS[q.ch].replace(/^第\d章\s*/,'');
   $('#secTag').textContent = q.sec;
   $('#questionText').textContent = q.q;
   const choiceOrder = shuffle(q.c.map((c,i)=>i));
   $('#choices').innerHTML = choiceOrder.map(ci => `
-    <button class="choiceBtn" data-ci="${ci}">
+    <button class="choiceBtn" data-ci="${ci}"${isAnswered ? ' disabled' : ''}>
       <span class="choiceMark"></span>
       <span class="choiceText">${q.c[ci]}</span>
     </button>
   `).join('');
-  $('#feedback').classList.add('hidden');
-  $('#feedback').innerHTML = '';
-  $('#nextBtn').classList.add('hidden');
+
+  const prevBtn = $('#prevBtn');
+  prevBtn.classList.toggle('hidden', viewIdx === 0);
+  prevBtn.onclick = () => { session.viewPos--; renderQuestion(); };
+
   const dontKnowBtn = $('#dontKnowBtn');
-  dontKnowBtn.disabled = false;
-  dontKnowBtn.onclick = () => answerQuestion(idx, null);
-  $$('.choiceBtn').forEach(btn => {
-    btn.addEventListener('click', () => answerQuestion(idx, parseInt(btn.dataset.ci)));
-  });
+  const nextBtn = $('#nextBtn');
+  const fb = $('#feedback');
+
+  if (isAnswered){
+    $$('.choiceBtn').forEach(btn => {
+      const ci = parseInt(btn.dataset.ci);
+      if (ci === q.a) btn.classList.add('correct');
+      if (ci === ans.chosenIdx && !ans.correct) btn.classList.add('incorrect');
+    });
+    dontKnowBtn.classList.add('hidden');
+
+    const headClass = ans.correct ? 'ok' : (ans.chosenIdx === null ? 'unknown' : 'ng');
+    const headText = ans.correct ? '正解 ◎' : (ans.chosenIdx === null ? 'わからない' : '不正解 ×');
+    fb.classList.remove('hidden');
+    fb.innerHTML = `
+      <div class="fbHead ${headClass}">${headText}</div>
+      <div class="fbExp">${q.e}</div>
+    `;
+
+    const isLast = viewIdx === session.order.length - 1;
+    nextBtn.classList.remove('hidden');
+    nextBtn.textContent = isLast ? '結果を見る' : '次の問題へ';
+    nextBtn.onclick = () => {
+      if (isLast) finishSession();
+      else { session.viewPos++; renderQuestion(); }
+    };
+  } else {
+    dontKnowBtn.classList.remove('hidden');
+    dontKnowBtn.disabled = false;
+    dontKnowBtn.onclick = () => answerQuestion(idx, null);
+    fb.classList.add('hidden');
+    fb.innerHTML = '';
+    nextBtn.classList.add('hidden');
+    nextBtn.onclick = null;
+    $$('.choiceBtn').forEach(btn => {
+      btn.addEventListener('click', () => answerQuestion(idx, parseInt(btn.dataset.ci)));
+    });
+  }
 }
 
 // chosenIdx が null の場合は「わからない」回答(不正解扱いで復習対象になるが、
-// どの選択肢も誤答としてはマークしない)
+// どの選択肢も誤答としてはマークしない)。answerQuestionはviewPos===answers.length
+// (ライブ問題)のときにしか呼ばれない
 function answerQuestion(idx, chosenIdx){
   const q = QUESTIONS[idx];
   const correct = chosenIdx === q.a;
-  $$('.choiceBtn').forEach(btn => {
-    btn.disabled = true;
-    const ci = parseInt(btn.dataset.ci);
-    if (ci === q.a) btn.classList.add('correct');
-    if (ci === chosenIdx && !correct) btn.classList.add('incorrect');
-  });
-  $('#dontKnowBtn').disabled = true;
   session.answers.push({idx, chosenIdx, correct});
 
   const key = qKey(q);
@@ -346,16 +398,9 @@ function answerQuestion(idx, chosenIdx){
   saveStore();
   saveInProgress(); // 中断→再開のため回答ごとに進捗を保存(模擬試験・分野別演習のみ)
 
-  const headClass = correct ? 'ok' : (chosenIdx === null ? 'unknown' : 'ng');
-  const headText = correct ? '正解 ◎' : (chosenIdx === null ? 'わからない' : '不正解 ×');
-  const fb = $('#feedback');
-  fb.classList.remove('hidden');
-  fb.innerHTML = `
-    <div class="fbHead ${headClass}">${headText}</div>
-    <div class="fbExp">${q.e}</div>
-  `;
-  $('#nextBtn').classList.remove('hidden');
-  $('#nextBtn').textContent = session.pos + 1 < session.order.length ? '次の問題へ' : '結果を見る';
+  // viewPosは動かさない。answers.lengthが伸びたことで isAnswered=true になり、
+  // renderQuestionの回答済み分岐(正誤ハイライト・解説表示)がそのまま使える
+  renderQuestion();
 }
 
 const MOCK_TIME_LIMIT_MS = 60 * 60 * 1000; // 模擬試験は60分の目安
@@ -398,15 +443,6 @@ function updateTimer(){
   if (remaining <= 0){
     stopTimer();
     finishSession();
-  }
-}
-
-function nextQuestion(){
-  session.pos++;
-  if (session.pos >= session.order.length){
-    finishSession();
-  } else {
-    renderQuestion();
   }
 }
 
@@ -595,7 +631,6 @@ function init(){
   on('#statsBackBtn', 'click', () => { renderHome(); screen('homeScreen'); });
   on('#reminderToggle', 'change', onReminderChanged);
   on('#reminderTime', 'change', onReminderChanged);
-  on('#nextBtn', 'click', nextQuestion);
   on('#quitBtn', 'click', async () => {
     // 中断しても進捗は保存されるので、その旨を伝えて不安を減らす
     if (await showConfirm('セッションを中断してホームに戻ります。\nここまでの回答は保存され、つづきから再開できます。', '中断する', 'つづける')){

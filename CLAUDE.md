@@ -98,12 +98,14 @@ function on(sel, ev, fn){
 
 ### 状態管理の中心 (`app.js`)
 - `QUESTIONS`: `questions.json` をfetchした問題配列
-- `session`: 受験中の状態 `{mode, chapterOrNull, order:[idx...], pos, answers, startedAt}`
+- `session`: 受験中の状態 `{mode, chapterOrNull, order:[idx...], viewPos, answers, startedAt}`
+  - `viewPos`: 現在表示中の問題インデックス。`viewPos < answers.length` なら「回答済みを閲覧中」(読み取り専用、選び直し不可)、`viewPos === answers.length` なら「未回答のライブ問題」(通常の解答フロー)。前の問題へ戻る/次へ進むはどちらも `viewPos` を動かして `renderQuestion()` を呼び直すだけで、回答済み範囲の行き来とライブ問題への復帰を同じ仕組みで扱っている(2026-08-20追加)。
+  - `answers` はインデックス0から順に詰まっていく前提(スキップや欠番は発生しない)ので、`answers.length` が「resumeすべき次の未回答位置」としてもそのまま使える(`getResumableProgress`/`saveInProgress` 参照)。
 - `store`: `localStorage`(キー `genai_passport_store_v1`)に永続化する受験履歴+誤答カウント+中断状態
   - `store.history`: 受験ごとの `{date, mode, total, correct, pct, chapterOrNull}`
   - `store.wrong`: 問題キー→誤答回数。正解すると1減算、0で復習キューから外れる
   - `store.inProgress[sessionKey]`: 模擬試験・分野別演習の中断→再開用データ `{order, answers, startedAt, qCount}`(`sessionKey` は `'mock'` または `'chapter-{章番号}'`)。復習モードは対象外(誤答キューが毎回変わるため)。`qCount` が現在の `QUESTIONS.length` と食い違えば無効化して最初から始める。
-  - `store.chapterStats`: `{章番号: {c:正解数, t:回答数}}`。学習データ画面の章別正答率用に回答ごとに積む(受験単位の `history` とは別物)
+  - `store.chapterStats`: `{章番号: {c:正解数, t:回答数}}`。学習データ画面の章別正答率用に回答ごとに積む(受験単位の `history` とは別物)。ホーム画面の分野別演習リストにもこの値を使った進捗バー(章の累計正答率)を表示している(2026-08-20追加)。
   - `store.studyDays`: 学習した日 `'YYYY-MM-DD'` の配列。連続学習日数の算出に使う
   - `store.reminder`: `{enabled, time}`。学習リマインダーの設定
   - **`loadStore()` は未定義フィールドを必ず埋める。** 既存ユーザーのデータには後から追加したフィールドが無いため、増やしたら必ずここに追記すること
@@ -113,8 +115,9 @@ function on(sel, ev, fn){
 `showAlert`/`showConfirm` — 自前のダイアログ。**素の `confirm()`/`alert()` を使わないこと** — WKWebViewがネイティブのダイアログを描画し、ボタンが「Cancel」「Ok」と英語で出てしまう
 `loadStore`/`saveStore`/`saveInProgress`/`getResumableProgress` — 永続化まわり
 `startSession(mode, chapterOrNull)` — 出題開始・再開判定
-`renderQuestion` / `answerQuestion(idx, chosenIdx)` — 出題・採点(`chosenIdx=null` で「わからない」を表現。不正解扱いだが誤答ハイライトはしない)
-`startTimer`/`updateTimer`/`fmtTime` — タイマー(模擬試験は`MOCK_TIME_LIMIT_MS`=60分からのカウントダウン、それ以外はストップウォッチ)
+`renderQuestion` — `session.viewPos` の位置を描画。回答済みなら選択肢を`disabled`にして正誤ハイライト+解説を出す読み取り専用表示、未回答ならインタラクティブな解答フローを出す。「前へ」ボタン(`#prevBtn`)は `viewPos>0` で表示、押すと `viewPos--` して再描画するだけ。「次の問題へ」ボタンは回答済み時のみ表示され、`viewPos++` して再描画(最後の問題なら`結果を見る`→`finishSession()`)
+`answerQuestion(idx, chosenIdx)` — ライブ問題(`viewPos === answers.length`のとき)にのみ呼ばれる採点処理(`chosenIdx=null` で「わからない」を表現。不正解扱いだが誤答ハイライトはしない)。`session.answers`に積んだ後は`renderQuestion()`を呼び直すだけで、`viewPos < answers.length`になり読み取り専用の正誤表示に自動的に切り替わる
+`startTimer`/`updateTimer`/`fmtTime` — タイマー。**模擬試験のみ**表示(`MOCK_TIME_LIMIT_MS`=60分からのカウントダウン、0で自動的に`finishSession()`)。分野別演習・復習では`#timerLabel`に`hidden`クラスを付けて何も表示しない(2026-08-19に「模擬試験のみ」へ変更。以前は分野別演習・復習でも経過時間のストップウォッチを出していた)
 `finishSession` — 完走処理、該当`inProgress`キーの削除
 
 ### 出題ロジック

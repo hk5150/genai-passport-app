@@ -81,18 +81,31 @@ button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
   margin:26px 2px 8px;
 }
 .chapBtn{
-  display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+  display:flex;flex-direction:column;gap:10px;
   width:100%;background:var(--card);border:1px solid #e4e9e8;border-radius:12px;
   padding:14px 16px;margin-bottom:8px;font-size:16px;color:var(--ink);cursor:pointer;
   text-align:left;
 }
 .chapBtn:active{background:var(--teal-light);}
+.chapBtnMain{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
 .chapName{flex:1;min-width:0;}
 .chapCount{flex:none;white-space:nowrap;font-size:13px;color:var(--muted);}
 .chapResume{font-size:11px;color:var(--orange);font-weight:700;display:block;margin-top:2px;}
+.chapProgress{display:flex;align-items:center;gap:10px;}
+.chapProgressNum{
+  flex:none;min-width:88px;text-align:right;
+  font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;
+}
+.chapProgressNum.good{color:var(--ok);}
+.chapProgressNum.mid{color:var(--orange);}
+.chapProgressNum.low{color:var(--ng);}
+.chapProgressNum.none{color:var(--muted);font-weight:400;}
 
 /* QUIZ */
 .quizTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;}
+.quizTopLeft{display:flex;align-items:center;gap:10px;}
+.prevBtn{background:none;border:none;color:var(--teal);font-size:14px;font-weight:600;cursor:pointer;padding:4px 4px 4px 0;}
+.prevBtn.hidden{display:none;}
 .progressLabel{font-size:14px;color:var(--muted);font-weight:600;}
 .timerLabel{font-size:14px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums;}
 .timerLabel.warn{color:var(--orange);}
