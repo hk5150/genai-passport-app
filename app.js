@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.12.0';
+const APP_VERSION = 'v1.12.1';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -210,8 +210,10 @@ function renderHome(){
   QUESTIONS.forEach(q => chapCounts[q.ch] = (chapCounts[q.ch]||0)+1);
   $('#chapterList').innerHTML = Object.keys(CHAPTERS).map(ch => {
     const prog = getResumableProgress(sessionKey('chapter', parseInt(ch)));
-    // 章別の学習進捗(累計正答率)。学習データ画面と同じ store.chapterStats を使い、
-    // 分野別演習を選ぶ時点で各章の仕上がり具合が一目でわかるようにする
+    // 章別の仕上がり具合(累計正答率)。学習データ画面と同じ store.chapterStats を使う。
+    // ここでは `84/112` のような生の分数を出さない — 隣に「100問」(章の問題数)が
+    // 並ぶため、周回して回答数が100を超えると「100問の章なのに112?」と読めてしまう。
+    // 「何問目まで進んだか」は周回表記と「つづきから」が担当し、この行は正答率に徹する
     const s = store.chapterStats[ch];
     const done = !!(s && s.t);
     const p = done ? Math.round(s.c/s.t*100) : 0;
@@ -228,7 +230,7 @@ function renderHome(){
       </div>
       <div class="chapProgress">
         <div class="breakBarWrap"><div class="breakBar ${tone}" style="width:${p}%"></div></div>
-        <span class="chapProgressNum ${tone}">${done ? `${p}%・${s.c}/${s.t}` : '未着手'}</span>
+        <span class="chapProgressNum ${tone}">${done ? `正答率 ${p}%` : '未着手'}</span>
       </div>
     </button>
   `;
@@ -532,7 +534,7 @@ function renderStats(){
       <div class="statChapName">${CHAPTERS[ch]}</div>
       <div class="statChapMeter">
         <div class="breakBarWrap"><div class="breakBar ${tone}" style="width:${p}%"></div></div>
-        <span class="statChapNum ${tone}">${done ? `${p}%・${s.c}/${s.t}` : '未着手'}</span>
+        <span class="statChapNum ${tone}">${done ? `${p}%・${s.c}/${s.t}問正解` : '未着手'}</span>
       </div>
     </div>`;
   }).join('');
