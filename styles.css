@@ -91,6 +91,7 @@ button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .chapName{flex:1;min-width:0;}
 .chapCount{flex:none;white-space:nowrap;font-size:13px;color:var(--muted);}
 .chapResume{font-size:11px;color:var(--orange);font-weight:700;display:block;margin-top:2px;}
+.chapLap{font-size:11px;color:var(--teal);font-weight:700;display:block;margin-top:2px;}
 .chapProgress{display:flex;align-items:center;gap:10px;}
 .chapProgressNum{
   flex:none;min-width:88px;text-align:right;

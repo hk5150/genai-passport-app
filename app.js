@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.11.0';
+const APP_VERSION = 'v1.12.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -79,6 +79,13 @@ async function loadStore(){
   if (!store.chapterStats) store.chapterStats = {};   // {章番号: {c:正解数, t:回答数}}
   if (!store.studyDays) store.studyDays = [];          // 学習した日 'YYYY-MM-DD' の配列
   if (!store.reminder) store.reminder = { enabled: false, time: '20:00' };
+  // v1.12.0で追加。分野別演習を完走(finishSession)した回数。{章番号: 完走回数}
+  if (!store.chapterLaps) store.chapterLaps = {};
+}
+
+// 分野別演習の「現在何周目か」。完走回数+1(まだ1周も完走していなければ1周目)
+function chapterLap(ch){
+  return (store.chapterLaps[ch] || 0) + 1;
 }
 
 // 書き込みは非同期だが待たない。UIを止めないためで、失敗しても次の保存で回復する
@@ -209,10 +216,14 @@ function renderHome(){
     const done = !!(s && s.t);
     const p = done ? Math.round(s.c/s.t*100) : 0;
     const tone = done ? (p>=70 ? 'good' : p>=50 ? 'mid' : 'low') : 'none';
+    // 1周も完走していない、かつ中断データも無い(=未着手)なら周回数は出さない。
+    // 「未着手」の表示と重複するため
+    const laps = store.chapterLaps[ch] || 0;
+    const showLap = laps > 0 || !!prog;
     return `
     <button class="chapBtn" data-ch="${ch}">
       <div class="chapBtnMain">
-        <span class="chapName">${CHAPTERS[ch]}${prog ? `<span class="chapResume">つづきから(${prog.pos}/${prog.total}問)</span>` : ''}</span>
+        <span class="chapName">${CHAPTERS[ch]}${showLap ? `<span class="chapLap">${laps + 1}周目</span>` : ''}${prog ? `<span class="chapResume">つづきから(${prog.pos}/${prog.total}問)</span>` : ''}</span>
         <span class="chapCount">${chapCounts[ch]||0}問</span>
       </div>
       <div class="chapProgress">
@@ -313,7 +324,9 @@ function renderQuestion(){
   const isAnswered = viewIdx < session.answers.length;
   const ans = isAnswered ? session.answers[viewIdx] : null;
 
-  $('#progressLabel').textContent = `${viewIdx+1} / ${session.order.length}`;
+  // 分野別演習のときだけ「n周目」を付記(何周目の何問目かが分かるように)
+  const lapSuffix = session.mode === 'chapter' ? `・${chapterLap(session.chapterOrNull)}周目` : '';
+  $('#progressLabel').textContent = `${viewIdx+1} / ${session.order.length}${lapSuffix}`;
   $('#progressFill').style.width = `${(viewIdx/session.order.length)*100}%`;
   $('#chapTag').textContent = CHAPTERS[q.ch].replace(/^第\d章\s*/,'');
   $('#secTag').textContent = q.sec;
@@ -453,6 +466,12 @@ function finishSession(){
   store.history.push({ date: Date.now(), mode: session.mode, total, correct: correctCount, pct, chapterOrNull: session.chapterOrNull||null });
   const key = sessionKey(session.mode, session.chapterOrNull);
   if (store.inProgress[key]) delete store.inProgress[key];
+  // 分野別演習は毎回その章の全問を固定順で出題するため、finishSessionまで
+  // たどり着くたび=1周完走とみなせる
+  if (session.mode === 'chapter'){
+    const ch = session.chapterOrNull;
+    store.chapterLaps[ch] = (store.chapterLaps[ch] || 0) + 1;
+  }
   saveStore();
 
   screen('resultScreen');
@@ -542,6 +561,7 @@ async function resetStudyData(){
   store.inProgress = {};
   store.chapterStats = {};
   store.studyDays = [];
+  store.chapterLaps = {};
   saveStore();
   renderStats();
   await showAlert('学習履歴をリセットしました。');
