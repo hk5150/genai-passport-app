@@ -72,6 +72,8 @@ Preferences は非同期APIのため `loadStore()` が `async` になってい�
 
 `questions.json` はnetwork-first配信なのでこの問題は起きないが、それ以外の静的アセットは常に注意。
 
+**App Storeへ提出するビルドを作るときは、さらに `ios/App/App.xcodeproj/project.pbxproj` の `MARKETING_VERSION`(2か所)も `APP_VERSION` に合わせる。** ここは `npm run ios:sync` では更新されないため手作業。同じバージョンで再アップロードする場合は `CURRENT_PROJECT_VERSION`(ビルド番号)を上げる。
+
 ### `CACHE_NAME` を上げても防げないケース(2026-08-16に実際に踏んだ)
 
 Service Workerのインストールが**GitHub Pagesの配信切り替えと重なる**と、新しい`CACHE_NAME`のキャッシュに**古い`index.html`が焼き付く**。以降は`CACHE_NAME`を上げるまで stale なシェルが配られ続ける。

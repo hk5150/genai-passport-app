@@ -22,6 +22,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- 暗号化は一切使っていない(通信自体が無く、questions.json をバンドルから読むだけ)。
+	     未設定だとアップロードのたびに輸出コンプライアンスの質問が出るので明示しておく -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

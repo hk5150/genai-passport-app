@@ -78,7 +78,10 @@ AIパスポート
 | 対応デバイス | iPhone専用 | iPad対応にすると13インチのスクリーンショットが別途必須 |
 | 向き | 縦向き固定 | レイアウトが max-width 640px の1カラム前提 |
 | 最低iOSバージョン | 15.0 | Capacitor 8 の既定 |
-| MARKETING_VERSION | 1.9.3 | `app.js` の `APP_VERSION` と揃える |
+| MARKETING_VERSION | 1.12.0 | `app.js` の `APP_VERSION` と揃える。**リリースのたびに手で更新が要る**(`project.pbxproj` 内に2か所) |
+| CURRENT_PROJECT_VERSION | 1 | ビルド番号。同じバージョンで再アップロードするときは必ず上げる |
+| ITSAppUsesNonExemptEncryption | `false` | 2026-08-22に `Info.plist` へ追加。未設定だとアップロードのたびに輸出コンプライアンスを聞かれる |
+| PrivacyInfo.xcprivacy | `ios/App/App/` に配置済み | 2026-08-22追加。`@capacitor/preferences` が UserDefaults を使うのに自前のマニフェストを同梱していないため、アプリ側で `NSPrivacyAccessedAPICategoryUserDefaults` / `CA92.1` を申告している。無いと ITMS-91053 で弾かれる |
 
 ## その他の申請フィールド
 
@@ -102,8 +105,13 @@ AIパスポート
 - ~~審査ガイドライン4.2対策(ローカル通知/Haptics/統計画面)~~ → **完了**(2026-08-16)
 - ~~アイコン1024×1024(アルファなし)の作成~~ → **完了**(2026-08-17)。`scripts/make-icons.py` で生成
 - ~~プライバシーポリシー / サポートページの作成~~ → **完了**(2026-08-17)。`privacy.html` / `support.html`
-  - ⚠ **連絡先が未記入。** 両ページに記入欄を用意してあるので、公開前に埋めること
+  - 🔴 **連絡先が未記入(提出ブロッカー)。** 両ページの橙枠に、問い合わせ用のメールアドレスか
+    フォームURLを入れる。App Store の審査は「利用者が連絡できる手段」を必須としており、
+    未記入のままだと Guideline 1.5 で弾かれる
 - ~~スクリーンショット(iPhone 6.9インチ)の作成~~ → **完了**(2026-08-17)。`docs/screenshots/`
+  - 🔴 **v1.9.3時点のもので古い。** 進捗バー・「前へ」・リセット・周回表記が写っていない。
+    撮り直し手順と対象は `docs/screenshots/README.md` 参照
+- ~~輸出コンプライアンス / プライバシーマニフェスト~~ → **完了**(2026-08-22)。上表参照
 - **Apple Developer Program 登録 → 署名設定 → 申請**(要: 本人確認・支払い)
 - Hapticsの実機確認(シミュレータでは触覚デバイスがないため未確認)
 
