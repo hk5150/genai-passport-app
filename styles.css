@@ -241,6 +241,14 @@ button{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .histScore.mid{color:var(--orange);}
 .histScore.low{color:var(--ng);}
 
+/* 学習データ画面の下部にある破壊的操作なので、他のボタンより控えめに */
+.resetBtn{
+  display:block;width:100%;margin-top:28px;padding:12px;
+  background:none;border:none;color:var(--ng);font-size:14px;font-weight:600;
+  cursor:pointer;text-align:center;
+}
+.resetBtn:active{opacity:.6;}
+
 /* 学習リマインダー(iOSアプリのみ表示) */
 .reminderRow{
   display:flex;align-items:center;gap:12px;

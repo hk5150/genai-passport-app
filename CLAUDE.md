@@ -104,7 +104,7 @@ function on(sel, ev, fn){
 - `store`: `localStorage`(キー `genai_passport_store_v1`)に永続化する受験履歴+誤答カウント+中断状態
   - `store.history`: 受験ごとの `{date, mode, total, correct, pct, chapterOrNull}`
   - `store.wrong`: 問題キー→誤答回数。正解すると1減算、0で復習キューから外れる
-  - `store.inProgress[sessionKey]`: 模擬試験・分野別演習の中断→再開用データ `{order, answers, startedAt, qCount}`(`sessionKey` は `'mock'` または `'chapter-{章番号}'`)。復習モードは対象外(誤答キューが毎回変わるため)。`qCount` が現在の `QUESTIONS.length` と食い違えば無効化して最初から始める。
+  - `store.inProgress[sessionKey]`: 模擬試験・分野別演習の中断→再開用データ `{order, answers, startedAt, qCount}`(`sessionKey` は `'mock'` または `'chapter-{章番号}'`)。復習モードは対象外(誤答キューが毎回変わるため)。`qCount` が現在の `QUESTIONS.length` と食い違えば無効化して最初から始める。**全問(`answers.length >= order.length`)回答済みの場合は「結果を確定させる」のではなく破棄して最初からやり直す**(2026-08-20変更。以前は結果画面へ自動遷移させていたが、ユーザー要望で「100%行ったらまた最初から」に変更した)。`startSession()` がこの破棄と同時に `saveStore()` を呼ぶこと — 呼び忘れると、新セッションに一度も回答せず離脱した場合に古い完了済みデータが永続化側に残る。
   - `store.chapterStats`: `{章番号: {c:正解数, t:回答数}}`。学習データ画面の章別正答率用に回答ごとに積む(受験単位の `history` とは別物)。ホーム画面の分野別演習リストにもこの値を使った進捗バー(章の累計正答率)を表示している(2026-08-20追加)。
   - `store.studyDays`: 学習した日 `'YYYY-MM-DD'` の配列。連続学習日数の算出に使う
   - `store.reminder`: `{enabled, time}`。学習リマインダーの設定
@@ -117,6 +117,7 @@ function on(sel, ev, fn){
 `startSession(mode, chapterOrNull)` — 出題開始・再開判定
 `renderQuestion` — `session.viewPos` の位置を描画。回答済みなら選択肢を`disabled`にして正誤ハイライト+解説を出す読み取り専用表示、未回答ならインタラクティブな解答フローを出す。「前へ」ボタン(`#prevBtn`)は `viewPos>0` で表示、押すと `viewPos--` して再描画するだけ。「次の問題へ」ボタンは回答済み時のみ表示され、`viewPos++` して再描画(最後の問題なら`結果を見る`→`finishSession()`)
 `answerQuestion(idx, chosenIdx)` — ライブ問題(`viewPos === answers.length`のとき)にのみ呼ばれる採点処理(`chosenIdx=null` で「わからない」を表現。不正解扱いだが誤答ハイライトはしない)。`session.answers`に積んだ後は`renderQuestion()`を呼び直すだけで、`viewPos < answers.length`になり読み取り専用の正誤表示に自動的に切り替わる
+`resetStudyData()`(2026-08-20追加) — 学習データ画面下部の「学習履歴をリセット」ボタン(`#resetStatsBtn`)から呼ばれる。`store.history`/`wrong`/`inProgress`/`chapterStats`/`studyDays` を全て空にする破壊的操作で、`showConfirm()` で確認を挟む。`store.reminder`(通知設定)はアプリの設定であり学習記録ではないため保持する
 `startTimer`/`updateTimer`/`fmtTime` — タイマー。**模擬試験のみ**表示(`MOCK_TIME_LIMIT_MS`=60分からのカウントダウン、0で自動的に`finishSession()`)。分野別演習・復習では`#timerLabel`に`hidden`クラスを付けて何も表示しない(2026-08-19に「模擬試験のみ」へ変更。以前は分野別演習・復習でも経過時間のストップウォッチを出していた)
 `finishSession` — 完走処理、該当`inProgress`キーの削除
 

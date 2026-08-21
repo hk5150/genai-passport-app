@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1.10.0';
+const APP_VERSION = 'v1.11.0';
 
 const CHAPTERS = {
   1: "第1章 AI(人工知能)",
@@ -271,17 +271,16 @@ function startSession(mode, chapterOrNull){
   const ip = (mode === 'mock' || mode === 'chapter') ? store.inProgress[key] : null;
   const ipValid = !!(ip && ip.qCount === QUESTIONS.length);
 
-  // 中断時点で全問回答済みだったが結果画面まで進んでいなかった場合は、その結果を確定させる
-  if (ipValid && ip.answers.length >= ip.order.length && ip.order.length > 0){
-    session = { mode, order: ip.order, viewPos: ip.answers.length, answers: ip.answers, startedAt: ip.startedAt, chapterOrNull };
-    finishSession();
-    return;
-  }
-
   let order, answers, startedAt;
   if (ipValid && ip.answers.length < ip.order.length){
+    // 中断した続きから再開
     order = ip.order; answers = ip.answers.slice(); startedAt = ip.startedAt;
   } else {
+    // 中断データが無い、または前回すでに100%回答済み(=結果画面を見ずに離脱した)場合は
+    // 結果を確定させず最初からやり直す。古い中断データが残っていれば掃除する。
+    // ここで保存しておかないと、新しいセッションに一度も回答しないまま離脱した場合に
+    // 古い(100%回答済みの)中断データが永続化側にだけ残ってしまう
+    if (ipValid){ delete store.inProgress[key]; saveStore(); }
     let pool;
     if (mode === 'mock'){
       pool = shuffle(QUESTIONS.map((q,i)=>i)).slice(0, Math.min(60, QUESTIONS.length));
@@ -533,6 +532,21 @@ function renderStats(){
   }).join('') : `<p class="muted">まだ受験記録がありません。</p>`;
 }
 
+// 受験履歴・正答率・復習キュー・中断中の演習をすべて消す。リマインダー設定は
+// 学習の記録ではなくアプリの設定なので維持する
+async function resetStudyData(){
+  const msg = '学習履歴をリセットします。\n受験履歴・正答率・復習キュー・中断中の演習がすべて消え、元に戻せません。';
+  if (!(await showConfirm(msg, 'リセットする', 'キャンセル'))) return;
+  store.history = [];
+  store.wrong = {};
+  store.inProgress = {};
+  store.chapterStats = {};
+  store.studyDays = [];
+  saveStore();
+  renderStats();
+  await showAlert('学習履歴をリセットしました。');
+}
+
 // ---- 学習リマインダー(iOSアプリのみ) ----------------------------------
 const REMINDER_ID = 1;
 
@@ -629,6 +643,7 @@ function init(){
   on('#explainBackBtn', 'click', () => { renderHome(); screen('homeScreen'); });
   on('#statsBtn', 'click', () => { renderStats(); screen('statsScreen'); });
   on('#statsBackBtn', 'click', () => { renderHome(); screen('homeScreen'); });
+  on('#resetStatsBtn', 'click', resetStudyData);
   on('#reminderToggle', 'change', onReminderChanged);
   on('#reminderTime', 'change', onReminderChanged);
   on('#quitBtn', 'click', async () => {
